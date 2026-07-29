@@ -38,6 +38,9 @@ export function CryptoHoldings() {
           <Link href="/convert" className="flex items-center text-xs font-medium text-primary">
             Convert <ChevronRight className="h-3.5 w-3.5" />
           </Link>
+          <Link href="/evm" className="flex items-center text-xs font-medium text-primary">
+            Base &amp; Ethereum <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </div>
       <Card className="divide-y divide-border p-0">
