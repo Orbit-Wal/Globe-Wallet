@@ -11,6 +11,101 @@
       "package": "axios",
       "reason": "Transitive dependency required by @stellar/stellar-sdk for Horizon HTTP transport layer.",
       "expires": "2027-12-31"
+    },
+    {
+      "package": "brace-expansion",
+      "reason": "GHSA-mh99-v99m-4gvg reports an affected range of <=5.0.7, which covers every version ever published (brace-expansion has never released a 5.x) — there is no fixed release to upgrade to. npm's own suggested fix is downgrading jest to 25.0.0, a 6-year-old major, which is not a real remediation. This is dev-only test tooling (glob pattern matching during test discovery), never shipped in the app bundle or reachable at runtime. Revisit at expiry in case a patched release exists by then.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "minimatch",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above (test-exclude's minimatch@3.1.5 dependency, deduped to a patched brace-expansion via the top-level override). Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "glob",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above. Dev-only test tooling (jest test discovery), not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "test-exclude",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via its minimatch@3.1.5 dependency. Dev-only jest coverage tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "babel-plugin-istanbul",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via its test-exclude dependency. Dev-only jest coverage instrumentation, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "babel-jest",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via babel-plugin-istanbul. Dev-only jest transform, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-snapshot",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via the @jest/transform dependency chain. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-runtime",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via the glob/@jest/transform dependency chain. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-runner",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via the @jest/transform dependency chain. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-resolve-dependencies",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via jest-snapshot. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-config",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via babel-jest/glob/jest-circus/jest-runner. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-circus",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via @jest/expect/jest-runtime/jest-snapshot. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest-cli",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via @jest/core/jest-config. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "jest",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via @jest/core/jest-cli. Dev-only test runner, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "@jest/transform",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via babel-plugin-istanbul. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "@jest/reporters",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via glob. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "@jest/globals",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via @jest/expect. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "@jest/expect",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via jest-snapshot. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
+    },
+    {
+      "package": "@jest/core",
+      "reason": "Synthetic package-level finding inherited entirely from the unfixable brace-expansion advisory above, via @jest/reporters/@jest/transform/jest-config/jest-resolve-dependencies/jest-runner/jest-runtime/jest-snapshot. Dev-only test tooling, not shipped at runtime.",
+      "expires": "2027-01-31"
     }
   ]
 }
