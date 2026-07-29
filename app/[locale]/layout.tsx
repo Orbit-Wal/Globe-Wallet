@@ -24,10 +24,11 @@ export const viewport: Viewport = {
 }
 
 export async function generateMetadata({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string }
+  params: Promise<{ locale: string }>
 }): Promise<Metadata> {
+  const { locale } = await params
   if (!locales.includes(locale)) notFound()
   
   const t = (await import(`@/messages/${locale}.json`)).default
@@ -58,13 +59,14 @@ export async function generateMetadata({
 
 export default async function RootLayout({
   children,
-  params: { locale }
+  params,
 }: Readonly<{
   children: React.ReactNode,
-  params: { locale: string }
+  params: Promise<{ locale: string }>
 }>) {
+  const { locale } = await params
   if (!locales.includes(locale)) notFound()
-  
+
   const messages = await getMessages()
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
 

@@ -13,9 +13,16 @@ if (typeof global.TextDecoder === 'undefined') {
 
 expect.extend(toHaveNoViolations)
 
+// testEnvironment is 'jest-fixed-jsdom' (see jest.config.js), which bridges
+// Node's real fetch/Request/Response/Headers into the jsdom realm — plain
+// jest-environment-jsdom doesn't have them at all (not even reachable via
+// global/globalThis from inside this setup file, since it runs inside the
+// jsdom VM sandbox, not the outer Node process). These guards are a no-op
+// safety net for whichever of the two is actually configured.
 const nodeRequest = global.Request || globalThis.Request
 const nodeResponse = global.Response || globalThis.Response
 const nodeHeaders = global.Headers || globalThis.Headers
+const nodeFetch = global.fetch || globalThis.fetch
 
 if (typeof window !== 'undefined') {
   if (!window.Request && nodeRequest) {
@@ -27,6 +34,9 @@ if (typeof window !== 'undefined') {
   if (!window.Headers && nodeHeaders) {
     window.Headers = nodeHeaders
   }
+  if (!window.fetch && nodeFetch) {
+    window.fetch = nodeFetch
+  }
 }
 
 if (!global.Request && nodeRequest) {
@@ -37,6 +47,9 @@ if (!global.Response && nodeResponse) {
 }
 if (!global.Headers && nodeHeaders) {
   global.Headers = nodeHeaders
+}
+if (!global.fetch && nodeFetch) {
+  global.fetch = nodeFetch
 }
 
 const mockClipboard = {

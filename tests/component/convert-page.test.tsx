@@ -43,13 +43,34 @@ jest.mock('../../components/app/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
-import ConvertPage from '../../app/convert/page'
+// ── ratesService mock ─────────────────────────────────────────────────────────
+// The page fetches live rates via ratesService.getExchangeRates() (#133 replaced
+// the old inline mock conversion with this). The real implementation races a
+// 3s network fetch against a timeout before falling back to cached rates —
+// incompatible with this file's jest.useFakeTimers() (fake timers don't
+// advance the real fetch(), and the fallback path never resolves in time).
+// Mocking it to resolve immediately sidesteps that entirely.
+jest.mock('../../lib/services/rates.service', () => ({
+  ratesService: {
+    getExchangeRates: jest.fn().mockResolvedValue([
+      { from: 'XLM', to: 'USDC', rate: 0.1185, change24h: 0 },
+      { from: 'XLM', to: 'USDT', rate: 0.1184, change24h: 0 },
+    ]),
+  },
+}))
+
+import ConvertPage from '../../app/[locale]/convert/page'
 import { toast } from 'sonner'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function renderPage() {
-  return render(<ConvertPage />)
+  return render(
+    <IntlTestProvider>
+      <ConvertPage />
+    </IntlTestProvider>,
+  )
 }
 
 function getFromInput() {

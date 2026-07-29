@@ -9,7 +9,7 @@ import { GET } from '../../app/api/analytics/route'
 import type { ChartAnalyticsApiResponse, ChartDailyDataPoint } from '../../lib/types'
 
 function buildRequest(period?: string): NextRequest {
-  const url = period
+  const url = period !== undefined
     ? `http://localhost/api/analytics?period=${period}`
     : 'http://localhost/api/analytics'
   return new NextRequest(url)
