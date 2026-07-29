@@ -68,7 +68,6 @@ function buildContainer(sendPaymentImpl?: jest.Mock) {
   const container = new FinanceServiceContainer(
     wallet as any,
     undefined,
-    undefined,
     pricing as any,
     fiat as any,
   )

@@ -103,9 +103,9 @@ export function BalanceCard({ title, showTotal = false, className }: BalanceCard
                   <span className="flex items-center">
                     {wallet.symbol || ''} {wallet.code}
                     {(wallet.changePct ?? 0) > 0 ? (
-                      <TrendingUp className="w-3 h-3 text-green-500 ml-1" />
+                      <TrendingUp className="w-3 h-3 text-emerald-700 dark:text-emerald-400 ml-1" />
                     ) : (
-                      <TrendingDown className="w-3 h-3 text-red-500 ml-1" />
+                      <TrendingDown className="w-3 h-3 text-red-700 dark:text-red-400 ml-1" />
                     )}
                   </span>
                   <span>{wallet.symbol || ''}{wallet.balance.toLocaleString()}</span>
@@ -127,9 +127,9 @@ export function BalanceCard({ title, showTotal = false, className }: BalanceCard
                   <span className="flex items-center">
                     {asset.code}
                     {(asset.changePct ?? 0) > 0 ? (
-                      <TrendingUp className="w-3 h-3 text-green-500 ml-1" />
+                      <TrendingUp className="w-3 h-3 text-emerald-700 dark:text-emerald-400 ml-1" />
                     ) : (
-                      <TrendingDown className="w-3 h-3 text-red-500 ml-1" />
+                      <TrendingDown className="w-3 h-3 text-red-700 dark:text-red-400 ml-1" />
                     )}
                   </span>
                   <span>{asset.balance.toLocaleString()} {asset.code}</span>

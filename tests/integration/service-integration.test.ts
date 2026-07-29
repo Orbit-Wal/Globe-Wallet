@@ -11,7 +11,8 @@ describe('Service Integration Tests', () => {
     expect(container.wallet).toBeDefined()
     expect(container.fiat).toBeDefined()
     expect(container.pricing).toBeDefined()
-    expect(container.exchange).toBeDefined()
+    expect(container.asset).toBeDefined()
+    expect((container as { exchange?: unknown }).exchange).toBeUndefined()
   })
 
   it('should handle cross-service operations', async () => {

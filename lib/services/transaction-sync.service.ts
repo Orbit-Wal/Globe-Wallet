@@ -9,14 +9,13 @@ import {
 import { db } from '../db/mock-db'
 import { generateTransactionId, isoToDisplayDate } from '../transaction-utils'
 import { Horizon } from '@stellar/stellar-sdk'
-import { MOCK_STELLAR_ACCOUNT } from '../fixtures'
 
 // Replaced by real Horizon sync
 
 export class TransactionSyncService extends BaseService implements ITransactionSyncService {
   private isSyncing = false
 
-  async syncFromNetwork(): Promise<TransactionSyncResult> {
+  async syncFromNetwork(accountId?: string): Promise<TransactionSyncResult> {
     return this.withPerformanceTracking('TransactionSyncService.syncFromNetwork', async () => {
       if (this.isSyncing) {
         return { added: 0, updated: 0, failed: 0, lastSyncAt: new Date().toISOString() }
@@ -28,6 +27,8 @@ export class TransactionSyncService extends BaseService implements ITransactionS
       let failed = 0
 
       try {
+        const account = await db.resolveAccount(accountId)
+        const publicKey = account.publicKey
         const server = new Horizon.Server('https://horizon-testnet.stellar.org')
         const existing = await db.getTransactions()
         const existingHashes = new Set(existing.map(t => t.stellarHash).filter(Boolean))
@@ -36,7 +37,7 @@ export class TransactionSyncService extends BaseService implements ITransactionS
 
         try {
           const page = await server.transactions()
-            .forAccount(MOCK_STELLAR_ACCOUNT.publicKey)
+            .forAccount(publicKey)
             .cursor(latestCursor)
             .limit(10)
             .call()
@@ -45,7 +46,7 @@ export class TransactionSyncService extends BaseService implements ITransactionS
             if (!existingHashes.has(record.hash)) {
               const tx: Transaction = {
                 id: generateTransactionId(),
-                type: record.source_account === MOCK_STELLAR_ACCOUNT.publicKey ? 'send' : 'receive',
+                type: record.source_account === publicKey ? 'send' : 'receive',
                 amount: 0, // We would normally parse operations to get the exact amount
                 asset: 'XLM',
                 address: record.source_account,

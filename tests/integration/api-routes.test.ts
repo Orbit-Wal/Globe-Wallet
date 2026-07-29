@@ -64,6 +64,36 @@ jest.mock("../../lib/services/container", () => ({
         publicKey: "GDXS...BNRX",
         memo: "STLP-2048",
         network: "Stellar Public Network",
+        id: "acct-primary",
+        name: "Primary Wallet",
+        isFunded: true,
+      }),
+      listAccounts: jest.fn().mockReturnValue([
+        {
+          id: "acct-primary",
+          userId: "user-1",
+          publicKey: "GDXS...BNRX",
+          name: "Primary Wallet",
+          accountType: "standard",
+          isPrimary: true,
+          isActive: true,
+          network: "Stellar Public Network",
+          isFunded: true,
+          createdAt: new Date().toISOString(),
+        },
+      ]),
+      getActiveAccountId: jest.fn().mockReturnValue("acct-primary"),
+      switchAccount: jest.fn().mockReturnValue({
+        id: "acct-primary",
+        userId: "user-1",
+        publicKey: "GDXS...BNRX",
+        name: "Primary Wallet",
+        accountType: "standard",
+        isPrimary: true,
+        isActive: true,
+        network: "Stellar Public Network",
+        isFunded: true,
+        createdAt: new Date().toISOString(),
       }),
       validateAddress: jest.fn().mockReturnValue(true),
       generateReceiveAddress: jest.fn().mockReturnValue("GDXS...BNRX"),
@@ -73,7 +103,13 @@ jest.mock("../../lib/services/container", () => ({
         publicKey: "GDXS...BNRX",
         memo: "STLP-2048",
         network: "Stellar Public Network",
+        id: "acct-primary",
+        name: "Primary Wallet",
+        isFunded: true,
       }),
+      listAccounts: jest.fn().mockReturnValue([]),
+      getActiveAccountId: jest.fn().mockReturnValue("acct-primary"),
+      switchAccount: jest.fn(),
       getOffRampMethods: jest.fn().mockReturnValue([]),
       getOffRampRate: jest.fn().mockReturnValue(1580.5),
     },
@@ -220,6 +256,7 @@ describe("API Routes Integration", () => {
     it("POST should process withdrawal and return success details", async () => {
       const request = new NextRequest("http://localhost/api/off-ramp", {
         method: "POST",
+        headers: { Authorization: "Bearer test-token" },
         body: JSON.stringify({
           asset: "XLM",
           amount: 10,
@@ -245,6 +282,7 @@ describe("API Routes Integration", () => {
     it("POST should return validation errors for missing fields", async () => {
       const request = new NextRequest("http://localhost/api/off-ramp", {
         method: "POST",
+        headers: { Authorization: "Bearer test-token" },
         body: JSON.stringify({ asset: "XLM", amount: 10 }),
       });
 

@@ -51,7 +51,7 @@ export function AddressLookupBadge({ result, className = "" }: AddressLookupBadg
         data-testid="lookup-resolved"
         className={`flex flex-col gap-0.5 text-xs ${className}`}
       >
-        <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+        <span className="flex items-center gap-1.5 text-green-700 dark:text-green-400">
           <CheckCircle2 className="h-3 w-3" aria-hidden />
           <span className="font-mono">{short}</span>
         </span>
@@ -70,7 +70,7 @@ export function AddressLookupBadge({ result, className = "" }: AddressLookupBadg
         role="alert"
         aria-live="assertive"
         data-testid="lookup-not-found"
-        className={`flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 ${className}`}
+        className={`flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300 ${className}`}
       >
         <AlertTriangle className="h-3 w-3" aria-hidden />
         No federation record found for this address.
@@ -84,7 +84,7 @@ export function AddressLookupBadge({ result, className = "" }: AddressLookupBadg
         role="alert"
         aria-live="assertive"
         data-testid="lookup-error"
-        className={`flex items-center gap-1.5 text-xs text-destructive ${className}`}
+        className={`flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400 ${className}`}
       >
         <XCircle className="h-3 w-3" aria-hidden />
         {error ?? "Address lookup failed."}

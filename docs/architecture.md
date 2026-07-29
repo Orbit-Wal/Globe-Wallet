@@ -213,53 +213,39 @@ const pathPayment = StellarSdk.Operation.pathPaymentStrictSend({
 })
 ```
 
-### Custom Contract Layer (Soroban)
+### Soroban Smart Contract Layer
 
-For advanced features, we implement Soroban smart contracts:
+The frontend interacts with Soroban smart contracts via `ISorobanService`.
+Contract interface specifications are maintained in `contracts/soroban-spec.json`
+and validated in CI against the source of truth in the `Orbit-Wal/contract` repository.
 
-#### 1. Savings Contract
-```rust
-#![no_std]
-use soroban_sdk::{contract, contractimpl, Env, Address, token};
+#### GlobeWallet Contract
 
-#[contract]
-pub struct SavingsContract;
+The `globe-wallet` contract ([source](https://github.com/Orbit-Wal/contract/blob/main/contracts/globe-wallet/src/lib.rs))
+provides:
 
-#[contractimpl]
-impl SavingsContract {
-    pub fn create_goal(
-        env: Env,
-        user: Address,
-        target_amount: i128,
-        asset: Address,
-        deadline: u64
-    ) -> u32 {
-        // Create savings goal with automated deposits
-    }
-    
-    pub fn deposit(env: Env, goal_id: u32, amount: i128) {
-        // Add funds to savings goal
-    }
-    
-    pub fn withdraw(env: Env, goal_id: u32, amount: i128) {
-        // Withdraw with conditions
-    }
-}
-```
+- **Asset registry**: `add_asset`, `remove_asset`, `get_assets` — whitelist up to 50 assets per user
+- **Spend limits**: `set_spend_limit`, `get_spend_limit`, `record_spend` — per-asset daily caps enforced on-chain
+- **Admin governance**: `initialize`, `admin`, `propose_admin`, `accept_admin`, `cancel_admin_transfer`
+- **Upgrade safety**: `propose_upgrade`, `execute_upgrade` — timelocked WASM upgrades
+- **Social recovery**: guardian-based M-of-N admin recovery (see contract docs for details)
 
-#### 2. DeFi Integration Contract
-```rust
-#[contractimpl]
-impl DeFiContract {
-    pub fn stake_xlm(env: Env, user: Address, amount: i128) -> i128 {
-        // Stake XLM in liquidity pools for yield
-    }
-    
-    pub fn claim_rewards(env: Env, user: Address) -> i128 {
-        // Claim staking rewards
-    }
-}
-```
+The `ISorobanService` interface in `lib/types.ts` mirrors the contract's public
+functions. The mock implementation (`soroban.service.mock.ts`) is used for
+development; the live implementation (`soroban.service.ts`) connects via
+`@stellar/stellar-sdk` `SorobanRpc.Server`.
+
+#### TokenWrapper Contract
+
+The `token-wrapper` contract implements token approval and transfer-from
+patterns. Its implementation is currently missing from the upstream contract
+repository. See [docs/soroban-gap.md](./soroban-gap.md) for details.
+
+#### Synchronization
+
+CI validates `contracts/soroban-spec.json` against the contract source via
+`scripts/check-soroban-sync.mjs`. This prevents silent interface drift between
+the frontend and the contract repository.
 
 ## Database Schema
 

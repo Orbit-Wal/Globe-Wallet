@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * tests/integration/health-api.test.ts
  * Issue #19: Integration tests for the /api/health endpoint.

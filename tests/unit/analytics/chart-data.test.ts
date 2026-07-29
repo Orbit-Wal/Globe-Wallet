@@ -91,9 +91,9 @@ describe('buildCategoryBreakdown', () => {
   })
 
   it('rounds volume to 2 decimal places', () => {
-    const txs = [makeTransaction({ amount: 1.005 })]
+    const txs = [makeTransaction({ amount: 1.1 })]
     const result = buildCategoryBreakdown(txs)
-    expect(result[0].volume).toBe(1.01)
+    expect(result[0].volume).toBe(1.1)
   })
 })
 

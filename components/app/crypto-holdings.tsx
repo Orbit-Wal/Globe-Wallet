@@ -72,8 +72,8 @@ export function CryptoHoldings() {
               >
                 <span
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-full text-base font-bold text-background",
-                    asset.color,
+                    "flex h-10 w-10 items-center justify-center rounded-full text-base font-bold",
+                    asset.color === 'bg-accent' ? 'bg-accent text-accent-foreground dark:text-foreground' : cn('text-background', asset.color),
                   )}
                   aria-hidden
                 >

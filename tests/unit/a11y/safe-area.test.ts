@@ -45,13 +45,15 @@ describe('getSafeAreaInsetValues', () => {
 describe('safeAreaPadding', () => {
   it('returns a 4-part padding shorthand string', () => {
     const result = safeAreaPadding()
-    const parts = result.split(' ')
+    const parts = result.split(/ (?=calc\()/)
     expect(parts).toHaveLength(4)
   })
 
   it('each part is a calc() wrapping an env()', () => {
     const result = safeAreaPadding('8px')
-    result.split(' ').forEach((part) => {
+    const parts = result.split(/ (?=calc\()/)
+    expect(parts).toHaveLength(4)
+    parts.forEach((part) => {
       expect(part).toMatch(/^calc\(/)
       expect(part).toContain('env(safe-area-inset-')
     })

@@ -1,7 +1,7 @@
-import { GET, POST } from '../../../app/api/wallet/trustlines/route'
-import { financeServices } from '../../../lib/services/container'
+import { GET, POST } from '../../app/api/wallet/trustlines/route'
+import { financeServices } from '../../lib/services/container'
 
-jest.mock('../../../lib/services/container', () => ({
+jest.mock('../../lib/services/container', () => ({
   financeServices: {
     wallet: {
       getTrustlines: jest.fn(),

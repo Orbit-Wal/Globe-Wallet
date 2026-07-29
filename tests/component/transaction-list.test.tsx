@@ -29,7 +29,6 @@ const mockServices = new FinanceServiceContainer(
   mockWallet as any,
   undefined,
   undefined,
-  undefined,
   mockFiat as any,
   undefined,
   undefined,

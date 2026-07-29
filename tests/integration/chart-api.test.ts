@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Integration tests for GET /api/analytics (Issue #17).
  * Validates response shape, type constraints, error handling, and stat calculations.

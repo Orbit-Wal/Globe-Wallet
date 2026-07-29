@@ -54,7 +54,6 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
         mockWallet as any,
         undefined,
         undefined,
-        undefined,
         mockFiat as any,
       )
     }

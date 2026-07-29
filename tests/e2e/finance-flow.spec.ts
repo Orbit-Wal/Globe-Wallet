@@ -41,8 +41,11 @@ test.describe('Finance Flow E2E', () => {
 
   test('should handle error states gracefully', async ({ page }) => {
     await page.route('**/api/**', (route) => route.abort())
-    await page.reload()
-    await page.waitForTimeout(2000)
+    // Wait for the reload to commit instead of sleeping a fixed 2s. The
+    // assertions below already retry until the shell renders, so they stay
+    // valid regardless of how long the aborted requests take to settle —
+    // including once the API is a real backend with variable latency.
+    await page.reload({ waitUntil: 'domcontentloaded' })
 
     const body = page.locator('body')
     await expect(body).toBeVisible()

@@ -84,14 +84,17 @@ export function useWallet() {
   );
 
   return {
-    getAccount: () => wallet.getAccountInfo(),
-    getBalance: () => wallet.getBalance(),
+    getAccount: (accountId?: string) => wallet.getAccountInfo(accountId),
+    listAccounts: (userId?: string) => wallet.listAccounts(userId),
+    getActiveAccountId: () => wallet.getActiveAccountId(),
+    switchAccount: (accountId: string) => wallet.switchAccount(accountId),
+    getBalance: (accountId?: string) => wallet.getBalance(accountId),
     sendPayment,
-    generateAddress: () => wallet.generateReceiveAddress(),
+    generateAddress: (accountId?: string) => wallet.generateReceiveAddress(accountId),
     validateAddress: (address: string) => wallet.validateAddress(address),
     shortenKey: (key: string, lead?: number, tail?: number) =>
       wallet.shortenKey(key, lead, tail),
-    getHistory: () => wallet.getTransactionHistory(),
+    getHistory: (accountId?: string) => wallet.getTransactionHistory(accountId),
     isProcessing,
   };
 }
@@ -107,18 +110,6 @@ export function useWallets() {
     convertCurrency: (from: CurrencyCode, to: CurrencyCode, amount: number) =>
       fiat.convertCurrency(from, to, amount),
     getAccountBalance: () => fiat.getAccountBalance(),
-  };
-}
-
-// ── useExchange ───────────────────────────────────────────────────────────────
-
-export function useExchange() {
-  const { exchange } = useFinanceServices();
-  return {
-    estimate: (from: AssetCode, to: AssetCode, amt: number) =>
-      exchange.estimateSwap(from, to, amt),
-    execute: (from: AssetCode, to: AssetCode, amt: number) =>
-      exchange.executeSwap(from, to, amt),
   };
 }
 
@@ -139,8 +130,16 @@ export function useOffRamp() {
 export function useSoroban() {
   const { soroban } = useFinanceServices();
   return {
-    createGoal: (amt: number, asset: AssetCode, deadline: number) =>
-      soroban.createSavingsGoal(amt, asset, deadline),
-    stake: (amt: number, asset: AssetCode) => soroban.stakeAssets(amt, asset),
+    addAsset: (user: string, asset: { code: string; issuer?: string }) =>
+      soroban.addAsset(user, asset),
+    removeAsset: (user: string, asset: { code: string; issuer?: string }) =>
+      soroban.removeAsset(user, asset),
+    getAssets: (user: string) => soroban.getAssets(user),
+    setSpendLimit: (user: string, asset: { code: string; issuer?: string }, limit: bigint) =>
+      soroban.setSpendLimit(user, asset, limit),
+    getSpendLimit: (user: string, asset: { code: string; issuer?: string }) =>
+      soroban.getSpendLimit(user, asset),
+    recordSpend: (user: string, asset: { code: string; issuer?: string }, amount: bigint) =>
+      soroban.recordSpend(user, asset, amount),
   };
 }

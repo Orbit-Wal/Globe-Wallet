@@ -55,7 +55,7 @@ export function ProjectAnalytics() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-foreground">Project Analytics</h2>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="w-2 h-2 rounded-full bg-emerald-600" aria-hidden="true" />
+          <div className="w-2 h-2 rounded-full bg-emerald-700 dark:bg-emerald-400" aria-hidden="true" />
           <span>Weekly Activity</span>
         </div>
       </div>
@@ -69,7 +69,7 @@ export function ProjectAnalytics() {
         </div>
         <div className="text-sm">
           <span className="text-muted-foreground">Peak: </span>
-          <span className="font-semibold text-emerald-600">{maxValue}%</span>
+          <span className="font-semibold text-emerald-700 dark:text-emerald-400">{maxValue}%</span>
         </div>
       </div>
     </Card>

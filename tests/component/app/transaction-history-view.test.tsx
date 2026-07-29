@@ -169,10 +169,34 @@ describe('TransactionHistoryView', () => {
   })
 
   it('renders status badges on each transaction', () => {
+    useTransactionHistory.mockReturnValue({
+      transactions: MOCK_PAGE.data,
+      total: MOCK_PAGE.total,
+      hasMore: MOCK_PAGE.hasMore,
+      loading: false,
+      error: null,
+      syncStatus: MOCK_SYNC_STATUS,
+      syncing: false,
+      page: MOCK_PAGE,
+      filters: { limit: 20, offset: 0 },
+      setSearch: jest.fn(),
+      setTypeFilter: jest.fn(),
+      setCategoryFilter: jest.fn(),
+      setPage: jest.fn(),
+      nextPage: jest.fn(),
+      prevPage: jest.fn(),
+      refresh: jest.fn(),
+      sync: jest.fn(),
+      addTransaction: jest.fn(),
+    })
     render(<TransactionHistoryView />)
     const badges = screen.getAllByTestId('transaction-status-badge')
     expect(badges.length).toBe(2)
     expect(badges[0]).toHaveAttribute('data-status', 'completed')
     expect(badges[1]).toHaveAttribute('data-status', 'pending')
+
+    // Verify accessibility requirements for async status updates (Issue #88)
+    expect(badges[0]).toHaveAttribute('aria-live', 'polite')
+    expect(badges[1]).toHaveAttribute('aria-live', 'polite')
   })
 })

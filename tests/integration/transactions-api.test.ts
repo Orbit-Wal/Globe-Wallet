@@ -136,7 +136,11 @@ describe('GET /api/transactions/sync', () => {
 
 describe('POST /api/transactions/sync', () => {
   it('triggers a sync and returns result shape', async () => {
-    const res = await POST_SYNC()
+    const req = new NextRequest('http://localhost:3000/api/transactions/sync', {
+      method: 'POST',
+      headers: { authorization: 'Bearer mock-token' },
+    })
+    const res = await POST_SYNC(req)
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.success).toBe(true)
@@ -149,7 +153,11 @@ describe('POST /api/transactions/sync', () => {
   })
 
   it('added is non-negative', async () => {
-    const res = await POST_SYNC()
+    const req = new NextRequest('http://localhost:3000/api/transactions/sync', {
+      method: 'POST',
+      headers: { authorization: 'Bearer mock-token' },
+    })
+    const res = await POST_SYNC(req)
     const json = await res.json()
     expect(json.data.added).toBeGreaterThanOrEqual(0)
   })

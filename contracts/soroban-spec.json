@@ -1,0 +1,357 @@
+{
+  "$schema": "soroban-spec/v1",
+  "generated": false,
+  "note": "Hand-maintained contract specification. Will be replaced by generated bindings (stellar contract bindings ts) once WASM artifacts are available upstream.",
+  "contracts": {
+    "globe-wallet": {
+      "name": "GlobeWallet",
+      "source": {
+        "repository": "https://github.com/Orbit-Wal/contract",
+        "path": "contracts/globe-wallet/src/lib.rs",
+        "commit": "HEAD"
+      },
+      "types": {
+        "AssetInfo": {
+          "description": "Represents a whitelisted asset in a user wallet",
+          "fields": {
+            "code": { "type": "String", "description": "Asset code, e.g. \"XLM\", \"USDC\"" },
+            "issuer": { "type": "Option<Address>", "description": "Issuer address; None for native XLM" }
+          }
+        },
+        "SpendRecord": {
+          "description": "Tracks daily spending against a per-asset cap",
+          "fields": {
+            "amount": { "type": "i128", "description": "Cumulative spend in the current day window" },
+            "day": { "type": "u64", "description": "Ledger-time timestamp of the current day window (now / 86400)" }
+          }
+        },
+        "WalletError": {
+          "description": "Contract error variants with numeric discriminants",
+          "variants": {
+            "AlreadyInitialized": 1,
+            "NotInitialized": 2,
+            "Unauthorized": 3,
+            "AssetAlreadyAdded": 4,
+            "AssetNotFound": 5,
+            "InvalidSpendLimit": 6,
+            "SpendLimitExceeded": 7,
+            "NoAssetsProvided": 8,
+            "NoPendingAdmin": 9,
+            "SpendOverflow": 10,
+            "AssetLimitExceeded": 11,
+            "UpgradeAlreadyPending": 12,
+            "UpgradeNotPending": 13,
+            "UpgradeHashMismatch": 14,
+            "UpgradeNotReady": 15,
+            "GuardianAlreadyAdded": 16,
+            "GuardianNotFound": 17,
+            "InvalidRecoveryThreshold": 18,
+            "NotEnoughGuardians": 19,
+            "RecoveryNotConfigured": 20,
+            "RecoveryAlreadyPending": 21,
+            "NoPendingRecovery": 22,
+            "AlreadyApproved": 23,
+            "ApprovalNotFound": 24,
+            "RecoveryNotReady": 25,
+            "RecoveryNotQuorate": 26
+          }
+        }
+      },
+      "methods": {
+        "initialize": {
+          "description": "Initialize the contract with an admin address. Fails if already initialized.",
+          "parameters": [
+            { "name": "admin", "type": "Address", "description": "Initial admin address" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "none",
+          "errors": ["AlreadyInitialized"]
+        },
+        "admin": {
+          "description": "Return the current admin address.",
+          "parameters": [],
+          "return": { "type": "Address" },
+          "auth": "none",
+          "errors": []
+        },
+        "transfer_admin": {
+          "description": "Legacy single-step admin transfer. Deprecated in favor of propose_admin + accept_admin.",
+          "parameters": [
+            { "name": "current", "type": "Address", "description": "Current admin address" },
+            { "name": "new_admin", "type": "Address", "description": "Candidate for admin" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "current",
+          "deprecated": true,
+          "errors": ["NotInitialized", "Unauthorized"]
+        },
+        "propose_admin": {
+          "description": "Propose a new admin candidate. The current admin remains in control until the candidate accepts.",
+          "parameters": [
+            { "name": "current", "type": "Address", "description": "Current admin address" },
+            { "name": "candidate", "type": "Address", "description": "Candidate for admin" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "current",
+          "errors": ["NotInitialized", "Unauthorized"]
+        },
+        "accept_admin": {
+          "description": "Accept a pending admin proposal.",
+          "parameters": [
+            { "name": "candidate", "type": "Address", "description": "Candidate accepting the admin role" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "candidate",
+          "errors": ["NotInitialized", "NoPendingAdmin", "Unauthorized"]
+        },
+        "cancel_admin_transfer": {
+          "description": "Cancel the current pending admin proposal.",
+          "parameters": [
+            { "name": "current", "type": "Address", "description": "Current admin address" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "current",
+          "errors": ["NotInitialized", "Unauthorized"]
+        },
+        "propose_upgrade": {
+          "description": "Queue an upgrade for later execution after a timelock delay.",
+          "parameters": [
+            { "name": "proposer", "type": "Address", "description": "Admin proposing the upgrade" },
+            { "name": "wasm_hash", "type": "BytesN<32>", "description": "Hash of the new WASM bytecode" },
+            { "name": "delay_in_ledgers", "type": "u32", "description": "Number of ledgers to wait before execution" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "proposer",
+          "errors": ["NotInitialized", "Unauthorized", "UpgradeAlreadyPending"]
+        },
+        "execute_upgrade": {
+          "description": "Execute a previously proposed upgrade after the timelock elapses.",
+          "parameters": [
+            { "name": "executor", "type": "Address", "description": "Admin executing the upgrade" },
+            { "name": "wasm_hash", "type": "BytesN<32>", "description": "Hash of the WASM bytecode to deploy" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "executor",
+          "errors": ["NotInitialized", "Unauthorized", "UpgradeNotPending", "UpgradeHashMismatch", "UpgradeNotReady"]
+        },
+        "add_guardian": {
+          "description": "Register a new guardian for social recovery. Admin-authorized.",
+          "parameters": [
+            { "name": "admin", "type": "Address", "description": "Current admin" },
+            { "name": "guardian", "type": "Address", "description": "Address to register as guardian" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "admin",
+          "errors": ["NotInitialized", "Unauthorized", "GuardianAlreadyAdded"]
+        },
+        "remove_guardian": {
+          "description": "Remove a guardian. Admin-authorized. Fails if would drop below recovery threshold.",
+          "parameters": [
+            { "name": "admin", "type": "Address", "description": "Current admin" },
+            { "name": "guardian", "type": "Address", "description": "Guardian address to remove" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "admin",
+          "errors": ["NotInitialized", "Unauthorized", "GuardianNotFound", "NotEnoughGuardians"]
+        },
+        "guardians": {
+          "description": "Return the list of registered guardian addresses.",
+          "parameters": [],
+          "return": { "type": "Vec<Address>" },
+          "auth": "none",
+          "errors": []
+        },
+        "set_recovery_config": {
+          "description": "Configure the M-of-N recovery threshold and timelock delay.",
+          "parameters": [
+            { "name": "admin", "type": "Address", "description": "Current admin" },
+            { "name": "threshold", "type": "u32", "description": "Number of guardian approvals required" },
+            { "name": "delay_in_ledgers", "type": "u32", "description": "Ledger-count delay after quorum before execute_recovery becomes callable" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "admin",
+          "errors": ["NotInitialized", "Unauthorized", "InvalidRecoveryThreshold", "NotEnoughGuardians"]
+        },
+        "recovery_config": {
+          "description": "Return the current recovery configuration.",
+          "parameters": [],
+          "return": { "type": "Option<RecoveryConfig>" },
+          "auth": "none",
+          "errors": []
+        },
+        "initiate_recovery": {
+          "description": "A guardian initiates a recovery proposal to replace the admin.",
+          "parameters": [
+            { "name": "guardian", "type": "Address", "description": "Guardian initiating recovery" },
+            { "name": "new_admin", "type": "Address", "description": "Proposed new admin" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "guardian",
+          "errors": ["Unauthorized", "RecoveryNotConfigured", "RecoveryAlreadyPending"]
+        },
+        "approve_recovery": {
+          "description": "A guardian approves a pending recovery proposal.",
+          "parameters": [
+            { "name": "guardian", "type": "Address", "description": "Guardian approving the proposal" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "guardian",
+          "errors": ["Unauthorized", "NoPendingRecovery", "AlreadyApproved"]
+        },
+        "revoke_recovery_approval": {
+          "description": "A guardian revokes their approval of a pending recovery proposal.",
+          "parameters": [
+            { "name": "guardian", "type": "Address", "description": "Guardian revoking approval" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "guardian",
+          "errors": ["NoPendingRecovery", "ApprovalNotFound"]
+        },
+        "execute_recovery": {
+          "description": "Execute a recovery after quorum is reached and timelock has elapsed. Replaces the admin. No explicit auth required — the recovery is gated by guardian quorum and timelock.",
+          "parameters": [],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "none",
+          "errors": ["NotInitialized", "RecoveryNotReady", "RecoveryNotQuorate"]
+        },
+        "cancel_recovery": {
+          "description": "Cancel a pending recovery proposal. Can only be called by the current admin.",
+          "parameters": [
+            { "name": "admin", "type": "Address", "description": "Current admin" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "admin",
+          "errors": ["NotInitialized", "Unauthorized", "NoPendingRecovery"]
+        },
+        "recovery_proposal": {
+          "description": "Return the current pending recovery proposal, if any.",
+          "parameters": [],
+          "return": { "type": "Option<RecoveryProposal>" },
+          "auth": "none",
+          "errors": []
+        },
+        "add_asset": {
+          "description": "Register a whitelisted asset for a user wallet. Max 50 assets per user.",
+          "parameters": [
+            { "name": "user", "type": "Address", "description": "User's Stellar address" },
+            { "name": "asset", "type": "AssetInfo", "description": "Asset to add (code + optional issuer)" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "user",
+          "errors": ["AssetAlreadyAdded", "AssetLimitExceeded"]
+        },
+        "remove_asset": {
+          "description": "Remove an asset from a user's wallet by asset code.",
+          "parameters": [
+            { "name": "user", "type": "Address", "description": "User's Stellar address" },
+            { "name": "asset_code", "type": "String", "description": "Asset code to remove" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "user",
+          "errors": ["AssetNotFound"]
+        },
+        "get_assets": {
+          "description": "Return the list of whitelisted assets for a user.",
+          "parameters": [
+            { "name": "user", "type": "Address", "description": "User's Stellar address" }
+          ],
+          "return": { "type": "Vec<AssetInfo>" },
+          "auth": "none",
+          "errors": []
+        },
+        "set_spend_limit": {
+          "description": "Set the daily spend limit (in stroops) for a specific asset. Admin or user authorized.",
+          "parameters": [
+            { "name": "user", "type": "Address", "description": "User's Stellar address" },
+            { "name": "asset_code", "type": "String", "description": "Asset code to set limit for" },
+            { "name": "limit", "type": "i128", "description": "Daily spend limit in stroops. 0 disables the limit." }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "user",
+          "errors": ["InvalidSpendLimit"]
+        },
+        "get_spend_limit": {
+          "description": "Return the daily spend limit for a specific asset.",
+          "parameters": [
+            { "name": "user", "type": "Address", "description": "User's Stellar address" },
+            { "name": "asset_code", "type": "String", "description": "Asset code to query" }
+          ],
+          "return": { "type": "i128" },
+          "auth": "none",
+          "errors": []
+        },
+        "record_spend": {
+          "description": "Record a spend and reject if it would exceed the daily limit. Reentrancy-safe: the read-modify-write of DailySpent is free of external contract calls.",
+          "parameters": [
+            { "name": "user", "type": "Address", "description": "User's Stellar address" },
+            { "name": "asset_code", "type": "String", "description": "Asset code being spent" },
+            { "name": "amount", "type": "i128", "description": "Amount being spent in stroops" }
+          ],
+          "return": { "type": "Result<(), WalletError>" },
+          "auth": "user",
+          "errors": ["SpendLimitExceeded", "SpendOverflow"]
+        },
+        "migrate_user_assets": {
+          "description": "Admin-only: trim a user's asset list to MAX_ASSETS (50) if it exceeds the bound. Returns the number of assets trimmed.",
+          "parameters": [
+            { "name": "admin", "type": "Address", "description": "Current admin" },
+            { "name": "user", "type": "Address", "description": "User whose assets to trim" }
+          ],
+          "return": { "type": "Result<u32, WalletError>" },
+          "auth": "admin",
+          "errors": ["NotInitialized", "Unauthorized"]
+        }
+      }
+    },
+    "token-wrapper": {
+      "name": "TokenWrapper",
+      "status": "BLOCKED",
+      "reason": "TokenWrapper contract implementation is missing from the upstream repository (Orbit-Wal/contract). The file contracts/token-wrapper/src/lib.rs contains a copy of GlobeWallet code and test stubs referencing TokenWrapperClient, but the actual TokenWrapper struct and #[contractimpl] block do not exist. Synchronization will resume once the implementation is available upstream.",
+      "source": {
+        "repository": "https://github.com/Orbit-Wal/contract",
+        "path": "contracts/token-wrapper/src/lib.rs",
+        "commit": "HEAD"
+      },
+      "documented_interface": {
+        "note": "From README.md — not verified against implementation",
+        "methods": {
+          "approve": {
+            "description": "Approve a spender to transfer tokens on behalf of the owner",
+            "parameters": [
+              { "name": "owner", "type": "Address" },
+              { "name": "spender", "type": "Address" },
+              { "name": "amount", "type": "i128" },
+              { "name": "expiry_ledger", "type": "u32" }
+            ],
+            "return": { "type": "Result<(), WrapperError>" }
+          },
+          "allowance": {
+            "description": "Return the current allowance for a spender",
+            "parameters": [
+              { "name": "owner", "type": "Address" },
+              { "name": "spender", "type": "Address" }
+            ],
+            "return": { "type": "Allowance" },
+            "allowance_type": {
+              "fields": {
+                "amount": { "type": "i128" },
+                "expiry_ledger": { "type": "u32" }
+              }
+            }
+          },
+          "transfer_from": {
+            "description": "Transfer tokens from owner to recipient using approved allowance",
+            "parameters": [
+              { "name": "spender", "type": "Address" },
+              { "name": "token_id", "type": "Address" },
+              { "name": "from", "type": "Address" },
+              { "name": "to", "type": "Address" },
+              { "name": "amount", "type": "i128" }
+            ],
+            "return": { "type": "Result<(), WrapperError>" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -55,7 +55,6 @@ function renderReceiveForm() {
   const container = new FinanceServiceContainer(
     mockWallet as any,
     undefined,
-    undefined,
     mockPricing as any,
     mockFiat as any
   )

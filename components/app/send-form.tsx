@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { WalletErrorAlert } from "@/components/ui/wallet-error-alert";
+import { TransactionStatusBadge } from "@/components/ui/transaction-status-badge";
 import { ContactPicker } from "@/components/ui/contact-picker";
 import { AddressLookupBadge } from "@/components/ui/address-lookup-badge";
 import { SendSummary } from "@/components/dashboard/send-summary";
@@ -171,6 +172,12 @@ export function SendForm() {
     step === "form" ? formError : status === "error" ? error : null;
 
   if (status === "success" && result) {
+    // A "pending" outcome means the transaction was signed and broadcast but
+    // Horizon hadn't confirmed inclusion in a ledger before we heard back —
+    // it is not yet a confirmed success. Reflect that distinctly rather than
+    // always claiming "Send Complete" (Issue #63).
+    const isPending = result.status === "pending";
+
     return (
       <Card
         className="w-full max-w-md border-primary/20 shadow-2xl bg-card/50 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -178,8 +185,12 @@ export function SendForm() {
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-green-500" aria-hidden />
-            {t("common.sendComplete")}
+            {isPending ? (
+              <Loader2 className="w-5 h-5 text-amber-500 animate-spin" aria-hidden />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-green-500" aria-hidden />
+            )}
+            {isPending ? t("common.sendSubmitted") : t("common.sendComplete")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -187,9 +198,18 @@ export function SendForm() {
             role="status"
             aria-live="polite"
             data-testid="send-success"
-            className="p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex flex-col gap-1"
+            className={
+              isPending
+                ? "p-3 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm flex flex-col gap-1"
+                : "p-3 rounded-md bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-sm flex flex-col gap-1"
+            }
           >
-            <span className="font-semibold">{t("common.transactionSuccessful")}</span>
+            <span className="font-semibold flex items-center gap-2">
+              {isPending
+                ? t("common.transactionAwaitingConfirmation")
+                : t("common.transactionSuccessful")}
+              {result.status && <TransactionStatusBadge status={result.status} />}
+            </span>
             {result.hash && (
               <span className="text-xs opacity-80 font-mono break-all">
                 Hash: {result.hash.slice(0, 20)}…

@@ -161,26 +161,59 @@ test.describe("Issue #21 — Payout Validation & Fee Calculation", () => {
 
   test("submit button shows Processing... while request is in flight", async ({ page }) => {
     await page.getByRole("spinbutton").fill("200");
-    await page.locator('[role="radio"]:not([aria-disabled="true"])').first().click();
+    // Select the first (enabled) method on the mounted /off-ramp page. The page
+    // renders native <input type="radio"> inside cursor-pointer labels, so we
+    // match the label the same way off-ramp-flow.spec.ts does rather than the
+    // [role="radio"] attribute selector (which never matches a native radio).
+    await page.locator('[class*="border rounded-lg cursor-pointer"]').first().click();
 
     const submitBtn = page.getByRole("button", { name: /withdraw to bank/i });
     await expect(submitBtn).toBeEnabled({ timeout: 5000 });
 
-    // Intercept the API so we can catch the loading state
+    // Gate the response instead of racing a fixed setTimeout(800). The route
+    // handler blocks on `responseGate` until the test explicitly releases it,
+    // so the in-flight/loading state stays observable for exactly as long as we
+    // need — the assertion no longer depends on a hard-coded mock latency and
+    // behaves identically against a real, variable-latency backend.
+    let releaseResponse!: () => void;
+    const responseGate = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    // Response shape mirrors app/api/off-ramp/route.ts: { success, data: { status } }.
+    const okBody = JSON.stringify({
+      success: true,
+      data: {
+        methodId: "bank_1",
+        methodName: "Chase Checking ****1234",
+        asset: "XLM",
+        amount: 200,
+        fiatAmount: 200,
+        status: "pending",
+      },
+    });
     await page.route("**/api/off-ramp", async (route) => {
-      await new Promise((r) => setTimeout(r, 800));
+      await responseGate;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ id: "tx_e2e_1", status: "pending" }),
+        body: okBody,
       });
     });
 
     await submitBtn.click();
 
-    // During the 800ms delay, should see "Processing..."
-    await expect(
-      page.getByRole("button", { name: /processing/i })
-    ).toBeVisible({ timeout: 2000 });
+    // While the response is gated the loading state is guaranteed to be present,
+    // so this is a deterministic observation, not a race against a timer.
+    const processingBtn = page.getByRole("button", { name: /processing/i });
+    await expect(processingBtn).toBeVisible({ timeout: 5000 });
+
+    // Release the response and assert the flow settles by watching real state
+    // transitions, never a sleep. We assert on the *persistent* "Last
+    // withdrawal" result card rather than the transient success toast — the
+    // toast auto-dismisses, whereas the card reflects committed state and stays
+    // valid regardless of how quickly (or slowly) a real backend responds.
+    releaseResponse();
+    await expect(processingBtn).toBeHidden({ timeout: 5000 });
+    await expect(page.getByText(/last withdrawal/i)).toBeVisible({ timeout: 5000 });
   });
 });

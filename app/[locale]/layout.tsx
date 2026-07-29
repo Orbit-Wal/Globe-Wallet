@@ -4,10 +4,12 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { FinanceServicesProvider } from "@/hooks/useFinanceServices"
+import { ActiveAccountProvider } from "@/hooks/useActiveAccount"
 import { NextIntlClientProvider } from "next-intl"
 import { getMessages } from "next-intl/server"
 import { notFound } from "next/navigation"
 import "./globals.css"
+import "@/lib/tracing/browser-tracer"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -22,7 +24,10 @@ export const viewport: Viewport = {
 }
 
 export async function generateMetadata({
-  params: { locale } }: { params: { locale: string }): Promise<Metadata> {
+  params: { locale },
+}: {
+  params: { locale: string }
+}): Promise<Metadata> {
   if (!locales.includes(locale)) notFound()
   
   const t = (await import(`@/messages/${locale}.json`)).default
@@ -75,7 +80,9 @@ export default async function RootLayout({
             storageKey="tasko-theme"
           >
             <FinanceServicesProvider>
-              {children}
+              <ActiveAccountProvider>
+                {children}
+              </ActiveAccountProvider>
             </FinanceServicesProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

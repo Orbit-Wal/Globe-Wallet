@@ -38,8 +38,8 @@ const TASK_STATS: StatDefinition[] = [
 // -- Sub-components ------------------------------------------------------------
 
 function TrendIcon({ trend }: { trend: "up" | "down" | "flat" }) {
-  if (trend === "up")   return <TrendingUp  className="w-3 h-3 text-green-600" />
-  if (trend === "down") return <TrendingDown className="w-3 h-3 text-red-600"  />
+  if (trend === "up")   return <TrendingUp  className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
+  if (trend === "down") return <TrendingDown className="w-3 h-3 text-red-700 dark:text-red-400"  />
   return <Minus className="w-3 h-3 text-muted-foreground" />
 }
 
@@ -50,7 +50,7 @@ function StatCard({ stat, index, hovered, onEnter, onLeave }: {
   onEnter: () => void
   onLeave: () => void
 }) {
-  const trendColor = stat.trend === "up" ? "text-green-600" : stat.trend === "down" ? "text-red-600" : "text-muted-foreground"
+  const trendColor = stat.trend === "up" ? "text-emerald-700 dark:text-emerald-400" : stat.trend === "down" ? "text-red-700 dark:text-red-400" : "text-muted-foreground"
   return (
     <Card
       data-testid={`analytics-stat-${index}`}

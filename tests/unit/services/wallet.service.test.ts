@@ -1,6 +1,9 @@
 import { WalletService } from '../../../lib/services/wallet.service'
 import { StellarServiceError, WalletServiceError } from '../../../lib/types'
 import { TEST_STELLAR_ADDRESS } from '../../../lib/fixtures'
+import { db } from '../../../lib/db/mock-db'
+import { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base'
+import { initTracing } from '../../../lib/tracing/tracer'
 
 describe('WalletService', () => {
     let service: WalletService
@@ -105,6 +108,76 @@ describe('WalletService', () => {
 
             await expect(service.sendPayment(TEST_STELLAR_ADDRESS, 10, 'XLM'))
                 .rejects.toThrow('Payment verification failed')
+        })
+
+        // Issue #63: the route can report completed/pending/failed depending on
+        // real ledger outcome — the persisted record must reflect that, not
+        // always be hardcoded to 'completed'.
+        it('persists the real hash and status the route reported, not a hardcoded "completed"', async () => {
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({
+                    success: true,
+                    hash: 'a'.repeat(64),
+                    status: 'pending',
+                }),
+            })
+
+            await service.sendPayment(TEST_STELLAR_ADDRESS, 25, 'XLM')
+
+            const [latest] = await db.getTransactions()
+            expect(latest.status).toBe('pending')
+            expect(latest.stellarHash).toBe('a'.repeat(64))
+        })
+
+        it('persists status "failed" when the route reports a ledger-level rejection', async () => {
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({
+                    success: false,
+                    hash: 'b'.repeat(64),
+                    status: 'failed',
+                    error: 'Horizon rejected the transaction (HTTP 400): op_underfunded',
+                }),
+            })
+
+            const result = await service.sendPayment(TEST_STELLAR_ADDRESS, 25, 'XLM')
+
+            expect(result.success).toBe(false)
+            const [latest] = await db.getTransactions()
+            expect(latest.status).toBe('failed')
+            expect(latest.stellarHash).toBe('b'.repeat(64))
+        })
+    })
+
+    describe('trace propagation (Issue #103)', () => {
+        const exporter = new InMemorySpanExporter()
+
+        beforeAll(() => {
+            initTracing(exporter)
+        })
+
+        beforeEach(() => {
+            exporter.reset()
+        })
+
+        it('propagates a W3C traceparent header on the real /api/wallet/send call', async () => {
+            await service.sendPayment(
+                'GC3G2N7N5LRYX6L5N2YHV3K2L9P8QW1ZC4T6BNRYX7QK3MUKXHV2RZ4D',
+                100,
+                'XLM'
+            )
+
+            const [, init] = (global.fetch as jest.Mock).mock.calls[0]
+            const headers = init.headers as Headers
+            expect(headers.get('traceparent')).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/)
+
+            const spans = exporter.getFinishedSpans()
+            const sendSpan = spans.find((s) => s.name === 'WalletService.sendPayment')
+            expect(sendSpan).toBeDefined()
+
+            const [, traceIdFromHeader] = headers.get('traceparent')!.split('-')
+            expect(traceIdFromHeader).toBe(sendSpan!.spanContext().traceId)
         })
     })
 })

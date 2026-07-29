@@ -1,29 +1,62 @@
-import { IWalletService, StellarAccount, Balance, Transaction, TransactionResult, AssetCode, StellarServiceError, WalletServiceError, Trustline, TrustlineResult } from '../types'
-import { MOCK_STELLAR_ACCOUNT, MOCK_CRYPTO_ASSETS, SUPPORTED_STELLAR_ASSETS, FixtureFactory } from '../fixtures'
+import { IWalletService, StellarAccount, Balance, Transaction, TransactionResult, AssetCode, StellarServiceError, WalletServiceError, Trustline, TrustlineResult, WalletAccount, ClaimableBalance } from '../types'
+import { MOCK_CRYPTO_ASSETS, SUPPORTED_STELLAR_ASSETS } from '../fixtures'
 import { formatAddress } from '../helpers/format'
 import { BaseService } from './base.service'
 import { db } from '../db/mock-db'
+import { context, injectTraceHeaders } from '../tracing/tracer'
 
 /**
  * Level 2 Architecture Sync: Wallet Service
  * Implements simulated Stellar account operations with persistence.
+ *
+ * Multi-account: every account-scoped method accepts an optional `accountId`.
+ * When omitted, operations target the active account (falling back to primary).
  */
 export class WalletService extends BaseService implements IWalletService {
     constructor() {
         super('WalletService')
     }
 
-    getAccountInfo(): StellarAccount {
-        return {
-            publicKey: MOCK_STELLAR_ACCOUNT.publicKey,
-            name: 'Primary Wallet',
-            network: MOCK_STELLAR_ACCOUNT.network || 'Stellar Public Network',
-            isFunded: true
+    listAccounts(userId?: string): WalletAccount[] {
+        return db.listAccountsSync(userId)
+    }
+
+    getActiveAccountId(): string | null {
+        return db.getActiveAccountSync()?.id ?? null
+    }
+
+    switchAccount(accountId: string): WalletAccount {
+        try {
+            return db.setActiveAccountSync(accountId)
+        } catch (err) {
+            throw new WalletServiceError(
+                err instanceof Error ? err.message : `Unknown wallet account: ${accountId}`,
+            )
         }
     }
 
-    async getBalance(): Promise<Balance[]> {
+    getAccountInfo(accountId?: string): StellarAccount {
+        try {
+            const account = db.resolveAccountSync(accountId)
+            return {
+                id: account.id,
+                publicKey: account.publicKey,
+                name: account.name,
+                network: account.network,
+                isFunded: account.isFunded,
+            }
+        } catch (err) {
+            throw new WalletServiceError(
+                err instanceof Error ? err.message : 'No wallet account available',
+            )
+        }
+    }
+
+    async getBalance(_accountId?: string): Promise<Balance[]> {
         return this.withPerformanceTracking('getBalance', async () => {
+            // Account id reserved for per-account balances once the store is
+            // partitioned; trustlines remain shared in the mock for now.
+            void _accountId
             const trustlines = await db.getTrustlines();
             const balances: Balance[] = [];
 
@@ -38,9 +71,6 @@ export class WalletService extends BaseService implements IWalletService {
                         priceUsd: assetFixture.priceUsd
                     });
                 } else if (supportedAsset) {
-                    // For newly trusted assets that don't have a balance fixture yet
-                    // Assuming priceUsd is 1.0 for stablecoins or look it up if we had a real price service here, 
-                    // but we can default to 1.0 for USDC/USDT for this mock
                     balances.push({
                         asset: supportedAsset.code as AssetCode,
                         amount: 0,
@@ -53,15 +83,19 @@ export class WalletService extends BaseService implements IWalletService {
         })
     }
 
-    async getTrustlines(): Promise<Trustline[]> {
+    async getTrustlines(_accountId?: string): Promise<Trustline[]> {
         return this.withPerformanceTracking('getTrustlines', async () => {
+            void _accountId
             return db.getTrustlines();
         });
     }
 
-    async changeTrustline(asset: AssetCode, action: 'add' | 'remove'): Promise<TrustlineResult> {
+    async changeTrustline(asset: AssetCode, action: 'add' | 'remove', accountId?: string): Promise<TrustlineResult> {
         return this.withPerformanceTracking('changeTrustline', async () => {
             try {
+                // Ensure the requested account exists before mutating trustlines.
+                await db.resolveAccount(accountId)
+
                 if (asset === 'XLM') {
                     throw new WalletServiceError("Cannot change trustline for native asset (XLM)");
                 }
@@ -83,7 +117,7 @@ export class WalletService extends BaseService implements IWalletService {
                         throw new WalletServiceError(`Trustline for ${asset} does not exist`);
                     }
                     
-                    const balances = await this.getBalance();
+                    const balances = await this.getBalance(accountId);
                     const assetBalance = balances.find(b => b.asset === asset);
                     if (assetBalance && assetBalance.amount > 0) {
                         throw new WalletServiceError(`Cannot remove trustline for ${asset} because it has a non-zero balance`);
@@ -104,9 +138,19 @@ export class WalletService extends BaseService implements IWalletService {
         });
     }
 
-    async sendPayment(destination: string, amount: number, asset: AssetCode, memo?: string): Promise<TransactionResult> {
+    async sendPayment(destination: string, amount: number, asset: AssetCode, memo?: string, accountId?: string): Promise<TransactionResult> {
         return this.withPerformanceTracking('sendPayment', async () => {
+            // Issue #103: captured synchronously, before the first `await` below —
+            // this codebase has no Zone.js/AsyncLocalStorage in the browser, so
+            // context.active() would no longer reflect this span once we resume
+            // after awaiting. Capturing it now and forwarding it explicitly to
+            // injectTraceHeaders() keeps propagation correct regardless of how
+            // many awaits happen in between.
+            const traceContext = context.active()
+
             try {
+                await db.resolveAccount(accountId)
+
                 if (amount <= 0) {
                     throw new WalletServiceError("Amount must be greater than zero")
                 }
@@ -115,12 +159,13 @@ export class WalletService extends BaseService implements IWalletService {
                     throw new StellarServiceError("Invalid destination address")
                 }
 
-                // Call mock API for transaction verification/simulation
-                // Using absolute URL when in non-browser context if needed, but relative works with mock/fetch
+                // Propagate the captured trace context (traceparent/tracestate) so
+                // /api/wallet/send can continue this trace instead of starting a new one.
+                const headers = injectTraceHeaders({ 'Content-Type': 'application/json' }, traceContext)
                 const response = await fetch('/api/wallet/send', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ destination, amount, asset, memo })
+                    headers,
+                    body: JSON.stringify({ destination, amount, asset, memo, accountId })
                 })
 
                 if (!response.ok) {
@@ -130,7 +175,9 @@ export class WalletService extends BaseService implements IWalletService {
 
                 const result = await response.json() as TransactionResult
 
-                // Persistence (Level 2 Sync)
+                // Persist whatever the network actually reported — a route that
+                // rejected or couldn't confirm the payment must not be recorded
+                // as if it had completed (see Issue #63).
                 await db.saveTransaction({
                     id: Math.floor(Math.random() * 1000000).toString(),
                     type: 'send',
@@ -138,7 +185,7 @@ export class WalletService extends BaseService implements IWalletService {
                     asset,
                     address: destination,
                     date: 'Just now',
-                    status: 'completed',
+                    status: result.status ?? (result.success ? 'completed' : 'failed'),
                     stellarHash: result.hash
                 })
 
@@ -149,8 +196,14 @@ export class WalletService extends BaseService implements IWalletService {
         })
     }
 
-    generateReceiveAddress(): string {
-        return MOCK_STELLAR_ACCOUNT.publicKey
+    generateReceiveAddress(accountId?: string): string {
+        try {
+            return db.resolveAccountSync(accountId).publicKey
+        } catch (err) {
+            throw new WalletServiceError(
+                err instanceof Error ? err.message : 'No wallet account available',
+            )
+        }
     }
 
     validateAddress(address: string): boolean {
@@ -162,11 +215,32 @@ export class WalletService extends BaseService implements IWalletService {
         return stellarRegex.test(address)
     }
 
-    async getTransactionHistory(): Promise<Transaction[]> {
+    async getTransactionHistory(_accountId?: string): Promise<Transaction[]> {
+        void _accountId
         return db.getTransactions()
     }
 
     shortenKey(key: string, lead = 6, tail = 6): string {
         return formatAddress(key, lead, tail)
+    }
+
+    // ── Claimable Balances (Issue #99) ─────────────────────────────────────
+    async listClaimableBalances(accountId?: string): Promise<ClaimableBalance[]> {
+        return this.withPerformanceTracking('listClaimableBalances', async () => {
+            await db.resolveAccount(accountId)
+            return db.getClaimableBalances(accountId)
+        })
+    }
+
+    async claimBalance(balanceId: string, accountId?: string): Promise<TransactionResult> {
+        return this.withPerformanceTracking('claimBalance', async () => {
+            const account = await db.resolveAccount(accountId)
+            return db.claimClaimableBalance(balanceId, account.publicKey)
+        })
+    }
+
+    async hasClaimableBalances(address: string): Promise<boolean> {
+        const balances = await db.getClaimableBalancesByAccount(address)
+        return balances.length > 0
     }
 }

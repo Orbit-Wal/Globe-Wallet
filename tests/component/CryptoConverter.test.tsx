@@ -30,7 +30,6 @@ const mockFiat = {
 const mockServices = new FinanceServiceContainer(
   undefined,
   undefined,
-  undefined,
   mockPricing as any,
   mockFiat as any,
   undefined,

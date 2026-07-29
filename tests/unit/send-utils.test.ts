@@ -134,7 +134,7 @@ describe('formatFederatedDisplay', () => {
 
   it('formats input + resolved key', () => {
     const out = formatFederatedDisplay('alice*stellar.org', KEY)
-    expect(out).toBe('alice*stellar.org → GDXSPAY…T6BNRX')
+    expect(out).toBe('alice*stellar.org → GDXSPAYW…T6BNRX')
   })
 
   it('returns input alone when no resolved key', () => {

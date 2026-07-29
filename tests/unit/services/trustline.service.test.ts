@@ -35,13 +35,17 @@ describe('WalletService - Trustlines', () => {
         })
 
         it('should successfully remove a trustline with zero balance', async () => {
-            // Let's add USDT first, as it has 0 balance (mock default for newly trusted is 0)
             await service.changeTrustline('USDT', 'add')
-            
+            // Newly added assets still surface fixture balances via getBalance();
+            // force a zero balance so the remove-path can succeed.
+            jest.spyOn(service, 'getBalance').mockResolvedValue([
+                { asset: 'USDT', amount: 0, available: 0, value: 0, change24h: 0 },
+            ] as any)
+
             const result = await service.changeTrustline('USDT', 'remove')
             expect(result.success).toBe(true)
             expect(result.action).toBe('remove')
-            
+
             const trustlines = await service.getTrustlines()
             expect(trustlines.find(t => t.asset === 'USDT')).toBeUndefined()
         })

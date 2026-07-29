@@ -82,6 +82,7 @@ NEXT_PUBLIC_APP_ENV=development
 | `STELLAR_HORIZON_URL` | Yes | Server only | Horizon REST API base URL. Must match the network above. |
 | `NEXT_PUBLIC_APP_ENV` | No | Client + Server | `development`, `staging`, or `production`. Used for UI hints (e.g. testnet badge). Defaults to `development`. |
 | `STELLAR_NETWORK_PASSPHRASE` | No | Server only | Override the network passphrase. Only needed for custom/private Stellar networks. If unset, the correct passphrase is derived from `NEXT_PUBLIC_STELLAR_NETWORK`. |
+| `STELLAR_SOURCE_SECRET_KEY` | No | Server only | Secret key of the account that signs/submits real payments in `/api/wallet/send` (Issue #63). Leave unset in any environment without a funded signing account — the route responds with `ERR_PAYMENT_NOT_CONFIGURED` instead of a fabricated result. See [Section 7](#7-security--key-handling) below before setting this to anything but a testnet key. |
 | `MERGE_ANALYTICS_URL` | CI only | Server only | Endpoint that receives a POST on every merge to `main`. Stored as a GitHub Actions secret — never in `.env` files. |
 
 > Variables prefixed with `NEXT_PUBLIC_` are embedded in the client bundle at build time. Do not put secrets in them.
@@ -224,7 +225,7 @@ The analytics payload includes the repository, commit SHA, author, timestamp, an
 ### The golden rules
 
 1. **Never commit `.env.local`** — it is in `.gitignore` for this reason.
-2. **Never put a Stellar secret key (starts with `S`) anywhere in the codebase**, tests, or docs. Secret keys have real value on mainnet and should only ever exist in a hardware wallet, secure enclave, or password manager.
+2. **Never put a Stellar secret key (starts with `S`) anywhere in the codebase**, tests, or docs. Secret keys have real value on mainnet and should only ever exist in a hardware wallet, secure enclave, or password manager. The one runtime exception is `STELLAR_SOURCE_SECRET_KEY` (Issue #63), which is deliberately an environment variable so `/api/wallet/send` can sign real testnet payments during development — see the mainnet checklist below before this app ever handles a mainnet key this way.
 3. **Never put `MERGE_ANALYTICS_URL` in `.env` files** — it is a CI secret only.
 4. **Never prefix secrets with `NEXT_PUBLIC_`** — those variables are embedded in the client bundle and visible to everyone.
 
@@ -242,6 +243,7 @@ Before switching `NEXT_PUBLIC_STELLAR_NETWORK=mainnet` in any environment:
 
 - [ ] Confirm the deployment is production-grade (not a developer laptop).
 - [ ] Private key management uses a hardware wallet or HSM — not environment variables.
+- [ ] `STELLAR_SOURCE_SECRET_KEY` is **unset** in this deployment's environment. A single env-var signing key is a testnet/development convenience (Issue #63) — real per-account custody (HSM/vault-backed, keyed off each wallet account's `encrypted_private_key` reference in `lib/db/mock-db.ts`) must replace it before this app ever moves real funds. Tracked as follow-up work in [docs/issue-63.md](./issue-63.md).
 - [ ] Rate limiting is enabled at the infrastructure layer.
 - [ ] `STELLAR_HORIZON_URL` points to `https://horizon.stellar.org` (not testnet).
 - [ ] KYC/AML requirements for your jurisdiction have been reviewed.

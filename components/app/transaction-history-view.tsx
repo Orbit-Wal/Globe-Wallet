@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { VirtualList } from '@/components/ui/virtual-list'
 import { TransactionStatusBadge } from '@/components/ui/transaction-status-badge'
 import { TransactionStats } from '@/components/dashboard/transaction-stats'
 import { useTransactionHistory } from '@/hooks/useTransactionHistory'
@@ -110,54 +111,58 @@ export function TransactionHistoryView() {
           No transactions found
         </p>
       ) : (
-        <ul
-          aria-label="Transaction list"
-          data-testid="transaction-list"
-          role="list"
-          className="space-y-2"
-        >
-          {transactions.map(tx => {
-            const isIncoming = tx.type === 'receive' || tx.type === 'in'
-            return (
-              <li
-                key={tx.id}
-                data-testid="transaction-item"
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                    isIncoming
-                      ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30'
-                      : 'bg-red-100 text-red-500 dark:bg-red-900/30',
-                  )}
+          <VirtualList
+            items={transactions}
+            itemHeight={80}
+            height={transactions.length <= 5 ? transactions.length * 80 : 320}
+            listClassName="space-y-2"
+            listTestId="transaction-list"
+            listAriaLabel="Transaction list"
+            role="list"
+            renderItem={(tx, index, style) => {
+              const isIncoming = tx.type === 'receive' || tx.type === 'in';
+              return (
+                <li
+                  key={tx.id}
+                  style={style}
+                  data-testid="transaction-item"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
+                  role="listitem"
                 >
-                  {isIncoming ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {tx.name ?? (isIncoming ? 'Received' : 'Sent')}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{tx.date}</p>
-                </div>
-
-                <div className="flex shrink-0 flex-col items-end gap-1">
                   <span
+                    aria-hidden="true"
                     className={cn(
-                      'text-sm font-semibold',
-                      isIncoming ? 'text-emerald-600' : 'text-foreground',
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                      isIncoming
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
                     )}
                   >
-                    {isIncoming ? '+' : '-'}{tx.amount.toLocaleString()} {tx.asset}
+                    {isIncoming ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                   </span>
-                  <TransactionStatusBadge status={tx.status} />
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {tx.name ?? (isIncoming ? 'Received' : 'Sent')}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{tx.date}</p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={cn(
+                        'text-sm font-semibold',
+                        isIncoming ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground',
+                      )}
+                    >
+                      {isIncoming ? '+' : '-'}{tx.amount.toLocaleString()} {tx.asset}
+                    </span>
+                    <TransactionStatusBadge status={tx.status} />
+                  </div>
+                </li>
+              );
+            }}
+          />
       )}
 
       {!loading && (total > pageSize) && (

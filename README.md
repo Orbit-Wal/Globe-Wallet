@@ -48,6 +48,7 @@ This repository is linked to a [v0](https://v0.app) project for rapid developmen
 - [Crypto-Native Send Flow: Federated Address Lookup (Issue #11)](docs/issue-11.md) - Stellar federation protocol support (SEP-0002), `AddressLookupBadge` component, `/api/federation` route, and full test coverage.
 - [Mock Centralization (Issue #14)](docs/issue-14.md) - Centralized fixtures/data service, API contracts, test strategy, and rollout notes.
 - [Convert Page: Conversion Math & Rate Lookup Tests (Issue #20)](docs/issue-20.md) - Unit/component/integration/E2E tests for the convert page, pure math helpers, and API contracts.
+- [Real Stellar Submission for Send Payments (Issue #63)](docs/issue-63.md) - Root cause, design decision (embedded Horizon SDK vs backend API call), signing-key configuration, and real-testnet verification for `/api/wallet/send`.
 
 [Continue working on v0 →](https://v0.app/chat/projects/prj_Z6moUc7brx5QzV1vPHQC842r9sYK)
 

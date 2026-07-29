@@ -10,6 +10,7 @@ import type {
   CurrencyCode,
   TransactionCategory,
   StellarAccount,
+  ClaimableBalance,
 } from '../types'
 import { MOCK_BALANCES } from './balances'
 import { MOCK_TRANSACTIONS, MOCK_TRANSACTIONS_COMPACT } from './transactions'
@@ -20,6 +21,7 @@ import { MOCK_CONVERSION_RATES, MOCK_SIMPLE_RATES } from './rates'
 import { MOCK_STELLAR_ACCOUNT, TEST_STELLAR_ADDRESS } from './stellar'
 import { MOCK_SAVINGS_GOALS } from './savings'
 import { MOCK_PAYMENT_CARDS } from './cards'
+import { MOCK_CLAIMABLE_BALANCES } from './claimable-balances'
 
 let counter = 0
 function uid(prefix = 'gen'): string {
@@ -119,6 +121,14 @@ export const FixtureFactory = {
     return 0.1185
   },
 
+  getClaimableBalances(): ClaimableBalance[] {
+    return MOCK_CLAIMABLE_BALANCES.map((b) => ({ ...b }))
+  },
+
+  getClaimableBalanceCount(): number {
+    return MOCK_CLAIMABLE_BALANCES.length
+  },
+
   // ── Dynamic factory methods ────────────────────────────────────────────
 
   createBalance(overrides: Partial<Balance> = {}): Balance {
@@ -198,6 +208,21 @@ export const FixtureFactory = {
     }
   },
 
+  createClaimableBalance(overrides: Partial<ClaimableBalance> = {}): ClaimableBalance {
+    return {
+      id: overrides.id ?? uid('cb'),
+      balanceId: overrides.balanceId ?? '0x' + Math.random().toString(16).slice(2, 66),
+      asset: overrides.asset ?? randomAsset(),
+      amount: overrides.amount ?? Math.random() * 1000,
+      claimants: overrides.claimants ?? [{ destination: TEST_STELLAR_ADDRESS }],
+      status: overrides.status ?? 'available',
+      createdAt: overrides.createdAt ?? new Date().toISOString(),
+      sponsor: overrides.sponsor,
+      memo: overrides.memo,
+      memoType: overrides.memoType,
+    }
+  },
+
   // ── Batch / scenario helpers ────────────────────────────────────────────
 
   /**
@@ -217,3 +242,4 @@ export const FixtureFactory = {
     }
   },
 }
+

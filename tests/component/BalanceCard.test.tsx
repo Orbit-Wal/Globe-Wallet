@@ -43,7 +43,6 @@ const mockPricingService = {
 const mockServices = new FinanceServiceContainer(
   undefined,
   undefined,
-  undefined,
   mockPricingService as any,
   mockFiatService as any,
   undefined,
@@ -104,7 +103,6 @@ describe('BalanceCard (Legacy Finance)', () => {
     }
 
     const errorServices = new FinanceServiceContainer(
-      undefined,
       undefined,
       undefined,
       mockPricingService as any,

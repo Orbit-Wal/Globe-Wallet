@@ -96,9 +96,11 @@ test.describe('Transaction History @transaction-history', () => {
     }
     const search = page.getByTestId('transaction-search')
     await search.fill('nonexistentxyz')
-    await page.waitForTimeout(400)
+    // No fixed sleep for the search debounce — assert on the resulting UI
+    // state instead. toBeVisible() retries until the debounced filter runs and
+    // the empty state renders, so this holds whatever the debounce interval is.
     const emptyState = page.getByTestId('empty-state')
-    await expect(emptyState).toBeVisible()
+    await expect(emptyState).toBeVisible({ timeout: 5000 })
   })
 
   test('sync button triggers POST /api/transactions/sync', async ({ page, request }) => {

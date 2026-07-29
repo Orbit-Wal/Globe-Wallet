@@ -12,8 +12,8 @@ interface TestCoverageCardProps {
 }
 
 const statusColors: Record<string, string> = {
-  pass: "text-green-600 dark:text-green-400",
-  fail: "text-destructive",
+  pass: "text-emerald-700 dark:text-emerald-400",
+  fail: "text-red-700 dark:text-red-400",
   pending: "text-muted-foreground",
 }
 
@@ -43,9 +43,9 @@ export function TestCoverageCard({
           className={cn(
             "rounded-full px-2 py-0.5 text-[11px] font-semibold",
             status === "pass"
-              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
               : status === "fail"
-                ? "bg-destructive/10 text-destructive"
+                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                 : "bg-secondary text-muted-foreground",
           )}
           data-testid={`coverage-status-${title.toLowerCase().replace(/\s+/g, "-")}`}

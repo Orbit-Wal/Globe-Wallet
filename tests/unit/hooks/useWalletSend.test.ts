@@ -102,6 +102,22 @@ describe('useWalletSend Hook', () => {
         expect(mockWallet.sendPayment).toHaveBeenCalledWith(validAddr, 100, 'XLM', undefined)
     })
 
+    it('treats a pending ledger outcome as success (not error) — Issue #63', async () => {
+        const validAddr = 'GDXSPAYWALLET7QK3MUKXHV2RZ4D6FJ5N2YHV3K2L9P8QW1ZC4T6BNRX'
+        const mockResult = { success: true, hash: 'a'.repeat(64), status: 'pending' }
+        mockWallet.sendPayment.mockResolvedValue(mockResult)
+
+        const { result } = renderHook(() => useWalletSend(), { wrapper })
+
+        await act(async () => {
+            await result.current.send(validAddr, '100', 'XLM')
+        })
+
+        expect(result.current.status).toBe('success')
+        expect(result.current.error).toBeNull()
+        expect(result.current.result?.status).toBe('pending')
+    })
+
     it('should handle service errors gracefully', async () => {
         const validAddr = 'GDXSPAYWALLET7QK3MUKXHV2RZ4D6FJ5N2YHV3K2L9P8QW1ZC4T6BNRX'
         const mockResult = { success: false, error: 'Destination account not funded', status: 'failed' }

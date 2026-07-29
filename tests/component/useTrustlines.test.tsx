@@ -1,10 +1,10 @@
 import { renderHook, act } from '@testing-library/react'
-import { useTrustlines } from '../../../hooks/useTrustlines'
-import { useToast } from '../../../hooks/use-toast'
-import { useFinanceServices } from '../../../hooks/useFinanceServices'
+import { useTrustlines } from '../../hooks/useTrustlines'
+import { useToast } from '../../hooks/use-toast'
+import { useFinanceServices } from '../../hooks/useFinanceServices'
 
-jest.mock('../../../hooks/use-toast')
-jest.mock('../../../hooks/useFinanceServices')
+jest.mock('../../hooks/use-toast')
+jest.mock('../../hooks/useFinanceServices')
 
 const mockToast = jest.fn()
 const mockWalletService = {

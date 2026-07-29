@@ -143,8 +143,8 @@ export function TransactionList({ limit = 10, showFilters = true, className }: T
                   <div className="flex items-center space-x-3">
                     <div className={`p-2 rounded-full ${
                       direction === 'in'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-red-100 text-red-600'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                     }`}>
                       {direction === 'in' ? (
                         <ArrowDownLeft className="w-4 h-4" />
@@ -160,7 +160,7 @@ export function TransactionList({ limit = 10, showFilters = true, className }: T
                     </div>
                   </div>
                   <div className={`text-right ${
-                    direction === 'in' ? 'text-green-600' : 'text-red-600'
+                    direction === 'in' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
                   }`}>
                     <div className="font-medium text-sm">
                       {direction === 'in' ? '+' : '-'}

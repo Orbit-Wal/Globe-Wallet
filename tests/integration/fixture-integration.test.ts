@@ -1,11 +1,45 @@
 /** @jest-environment node */
+
+// Only the network-facing Horizon.Server calls are faked here — StrKey,
+// TransactionBuilder, Keypair, Asset, and Memo are the real SDK (via
+// requireActual), so /api/wallet/send still does real transaction
+// building/signing in this test, it just never reaches the network.
+const mockLoadAccount = jest.fn()
+const mockSubmitTransaction = jest.fn()
+
+jest.mock('@stellar/stellar-sdk', () => {
+  const actual = jest.requireActual('@stellar/stellar-sdk')
+  class MockHorizonServer {
+    constructor(_url: string) {
+      void _url
+    }
+    loadAccount(...args: unknown[]) {
+      return mockLoadAccount(...args)
+    }
+    submitTransaction(...args: unknown[]) {
+      return mockSubmitTransaction(...args)
+    }
+  }
+  return { ...actual, Horizon: { ...actual.Horizon, Server: MockHorizonServer } }
+})
+
 import { NextRequest } from 'next/server'
+import * as StellarSdk from '@stellar/stellar-sdk'
 import { GET as balancesGET } from '../../app/api/wallet/balances/route'
 import { GET as transactionsGET } from '../../app/api/wallet/transactions/route'
 import { POST as sendPOST } from '../../app/api/wallet/send/route'
 import { GET as ratesGET } from '../../app/api/rates/route'
 import { FixtureFactory } from '../../lib/fixtures'
 import { TEST_STELLAR_ADDRESS } from '../../lib/fixtures/stellar'
+
+// Throwaway keypair used only to sign in-memory test transactions — never
+// funded, never submitted to a real network.
+const TEST_SOURCE_SECRET = 'SCKSUCB5MRRIVQUWM5EFVWDWJAGAMXLP5Y4HL5VMX7KQJGS42OOU73C5'
+const TEST_SOURCE_PUBLIC_KEY = 'GCVEVGZLNDWWIPMM3B4Q76ZPSZOCDXTMMG2MLZMJBQURLNSB7NRU4PTB'
+
+process.env.STELLAR_HORIZON_URL = 'https://horizon-testnet.stellar.org'
+process.env.STELLAR_SOURCE_SECRET_KEY = TEST_SOURCE_SECRET
+process.env.NEXT_PUBLIC_STELLAR_NETWORK = 'testnet'
 
 describe('API Routes - Mock Centralization (Issue #14)', () => {
   describe('GET /api/wallet/balances', () => {
@@ -74,15 +108,23 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
 
   describe('POST /api/wallet/send', () => {
     const validBody = {
-      destination: 'GC3G2N7N5LRYX6L5N2YHV3K2L9P8QW1ZC4T6BNRYX7QK3MUKXHV2RZ4D',
+      destination: 'GBID26P7CMFHLDFV35TT5RKQHTA6QARBYCBCNW2QIXVPMKE6MSE3FCDV',
       amount: 100,
       asset: 'XLM',
       memo: 'test',
     }
 
+    beforeEach(() => {
+      jest.clearAllMocks()
+      mockLoadAccount.mockResolvedValue(new StellarSdk.Account(TEST_SOURCE_PUBLIC_KEY, '1'))
+      mockSubmitTransaction.mockResolvedValue({ hash: 'c'.repeat(64), ledger: 42, successful: true })
+    })
+
     it('should return 200 for valid payload', async () => {
       const req = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
+        headers: { Authorization: 'Bearer test-token' },
+
         body: JSON.stringify(validBody),
       })
       const response = await sendPOST(req)
@@ -91,12 +133,16 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.hash).toBeDefined()
-      expect(data.hash).toMatch(/^0x[a-f0-9]+$/)
+      // Real Stellar tx hash format — 64 lowercase hex chars — not the old
+      // fabricated `0x${Math.random()...}` shape (Issue #63).
+      expect(data.hash).toMatch(/^[0-9a-f]{64}$/)
     })
 
     it('should return 422 for empty destination', async () => {
       const req = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
+        headers: { Authorization: 'Bearer test-token' },
+
         body: JSON.stringify({ ...validBody, destination: '' }),
       })
       const response = await sendPOST(req)
@@ -106,6 +152,8 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
     it('should return 422 for negative amount', async () => {
       const req = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
+        headers: { Authorization: 'Bearer test-token' },
+
         body: JSON.stringify({ ...validBody, amount: -100 }),
       })
       const response = await sendPOST(req)
@@ -115,6 +163,8 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
     it('should return 400 for invalid JSON', async () => {
       const req = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
+        headers: { Authorization: 'Bearer test-token' },
+
         body: 'not json',
       })
       const response = await sendPOST(req)
@@ -124,6 +174,8 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
     it('should return 422 for invalid Stellar address', async () => {
       const req = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
+        headers: { Authorization: 'Bearer test-token' },
+
         body: JSON.stringify({ ...validBody, destination: 'invalid' }),
       })
       const response = await sendPOST(req)

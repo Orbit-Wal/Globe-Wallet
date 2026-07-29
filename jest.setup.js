@@ -1,5 +1,15 @@
 import '@testing-library/jest-dom'
 import { toHaveNoViolations } from 'jest-axe'
+import { TextEncoder as NodeTextEncoder, TextDecoder as NodeTextDecoder } from 'util'
+
+if (typeof global.TextEncoder === 'undefined') {
+  global.TextEncoder = NodeTextEncoder
+  globalThis.TextEncoder = NodeTextEncoder
+}
+if (typeof global.TextDecoder === 'undefined') {
+  global.TextDecoder = NodeTextDecoder
+  globalThis.TextDecoder = NodeTextDecoder
+}
 
 expect.extend(toHaveNoViolations)
 

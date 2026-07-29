@@ -39,10 +39,13 @@ test.describe('Convert Flow', () => {
     // Submit conversion
     await convertButton.click()
 
-    // Button shows loading state
+    // Button shows loading state (condition-based, not a fixed wait)
     await expect(page.getByText(/converting/i)).toBeVisible()
 
-    // After ~2s simulation, success toast should appear
+    // Wait on the success toast itself, not a fixed delay. The 8s ceiling is a
+    // generous upper bound that absorbs real, variable network latency once the
+    // mocked conversion delay is replaced with a live call — the assertion
+    // resolves as soon as the toast appears, no matter how fast or slow.
     await expect(page.getByText(/successfully converted/i)).toBeVisible({ timeout: 8000 })
   })
 

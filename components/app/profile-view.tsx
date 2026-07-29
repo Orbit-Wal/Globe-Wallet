@@ -16,10 +16,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
+import { AccountSwitcher } from "@/components/app/account-switcher"
+import { useActiveAccount } from "@/hooks/useActiveAccount"
+import { useFinanceServices } from "@/hooks/useFinanceServices"
 
 export function ProfileView() {
   const { theme, setTheme } = useTheme()
   const isDark = theme === "dark"
+  const { activeAccount } = useActiveAccount()
+  const { wallet } = useFinanceServices()
 
   return (
     <div className="px-4 pt-5">
@@ -34,6 +39,16 @@ export function ProfileView() {
           <BadgeCheck className="h-3.5 w-3.5" /> Verified - Tier 3
         </span>
       </Card>
+
+      <SettingsGroup title="Wallets">
+        <div className="space-y-2 px-4 py-3.5" data-testid="profile-account-switcher">
+          <p className="text-xs text-muted-foreground">Active Stellar account</p>
+          <AccountSwitcher />
+          <p className="font-mono text-[11px] text-muted-foreground">
+            {wallet.shortenKey(activeAccount.publicKey)} · {activeAccount.name}
+          </p>
+        </div>
+      </SettingsGroup>
 
       <SettingsGroup title="Preferences">
         <ToggleRow

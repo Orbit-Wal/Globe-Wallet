@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils'
 type Status = 'completed' | 'pending' | 'failed'
 
 const STATUS_STYLES: Record<Status, string> = {
-  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  completed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
 }
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -23,6 +23,7 @@ export function TransactionStatusBadge({ status, className }: TransactionStatusB
   return (
     <span
       role="status"
+      aria-live="polite"
       data-testid="transaction-status-badge"
       data-status={status}
       className={cn(

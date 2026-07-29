@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Bell, Eye, EyeOff, Plus } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { AccountSwitcher } from "@/components/app/account-switcher"
 import { useBalances } from "@/hooks/useBalances"
-import { useWallets } from "@/hooks/useFinanceServices"
+import { useFinanceServices, useWallets } from "@/hooks/useFinanceServices"
+import { useActiveAccount } from "@/hooks/useActiveAccount"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { CurrencyCode } from "@/lib/types"
@@ -17,9 +19,11 @@ export function BalanceCard() {
   const [hidden, setHidden] = useState(false)
   const { wallets, loading } = useBalances()
   const { formatMoney } = useWallets()
+  const { wallet } = useFinanceServices()
+  const { activeAccount } = useActiveAccount()
   const [active, setActive] = useState<CurrencyCode>("NGN")
 
-  const wallet = wallets.find((w) => w.code === active)
+  const fiatWallet = wallets.find((w) => w.code === active)
 
   return (
     <div className="px-4 pt-4" data-testid="balance-card">
@@ -46,6 +50,17 @@ export function BalanceCard() {
           </button>
         </div>
       </header>
+
+      <div className="mb-3">
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Stellar account</p>
+        <AccountSwitcher size="sm" />
+        <p
+          className="mt-1.5 font-mono text-[11px] text-muted-foreground"
+          data-testid="active-account-key"
+        >
+          {wallet.shortenKey(activeAccount.publicKey)}
+        </p>
+      </div>
 
       <Card className="overflow-hidden border-0 bg-primary p-5 text-primary-foreground shadow-xl shadow-primary/30">
         {loading ? (
@@ -91,24 +106,29 @@ export function BalanceCard() {
               </button>
             </div>
 
-            {wallet ? (
+            {fiatWallet ? (
               <>
-                <p className="text-xs text-primary-foreground/80">{t('common.walletBalance', { wallet: wallet.label || wallet.code })}</p>
+                <p className="text-xs text-primary-foreground/80">
+                  {t('common.walletBalance', { wallet: fiatWallet.label || fiatWallet.code })}
+                </p>
                 <p className="mt-1 text-4xl font-bold tracking-tight text-balance" data-testid="total-value">
-                  {formatMoney(wallet.balance, wallet.code, hidden)}
+                  {formatMoney(fiatWallet.balance, fiatWallet.code, hidden)}
                 </p>
 
                 <div className="mt-4 flex items-center justify-between">
                   <span
                     className={cn(
                       "rounded-full px-2.5 py-1 text-xs font-medium",
-                      (wallet.changePct ?? 0) >= 0
+                      (fiatWallet.changePct ?? 0) >= 0
                         ? "bg-primary-foreground/15 text-primary-foreground"
                         : "bg-destructive/20 text-primary-foreground",
                     )}
                     data-testid="balance-change"
+                    aria-live="polite"
+                    aria-atomic="true"
                   >
-                    {(wallet.changePct ?? 0) >= 0 ? "+" : ""}{wallet.changePct ?? 0}% {t('common.thisWeek')}
+                    {(fiatWallet.changePct ?? 0) >= 0 ? "+" : ""}
+                    {fiatWallet.changePct ?? 0}% {t('common.thisWeek')}
                   </span>
                   <button
                     type="button"

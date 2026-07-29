@@ -42,7 +42,6 @@ function buildMockContainer(overrides: Record<string, any> = {}) {
   const container = new FinanceServiceContainer(
     wallet as any,
     undefined,
-    undefined,
     pricing as any,
     fiat as any,
   )

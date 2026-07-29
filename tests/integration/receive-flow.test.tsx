@@ -42,7 +42,7 @@ function buildContainer() {
     getExchangeRate: jest.fn().mockReturnValue(1),
     getAccountBalance: jest.fn().mockReturnValue(0),
   }
-  return new FinanceServiceContainer(wallet as any, undefined, undefined, pricing as any, fiat as any)
+  return new FinanceServiceContainer(wallet as any, undefined, pricing as any, fiat as any)
 }
 
 describe('Receive flow integration — issue #22', () => {

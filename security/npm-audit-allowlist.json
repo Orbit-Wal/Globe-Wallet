@@ -1,0 +1,16 @@
+{
+  "$schema_comment": "Explicit accepted-risk exceptions for the npm audit CI gate. Empty means every finding at or above threshold fails the build.",
+  "threshold": "moderate",
+  "exceptions": [
+    {
+      "package": "@stellar/stellar-sdk",
+      "reason": "Official Stellar JavaScript SDK required for Stellar blockchain integration and Horizon path payment APIs.",
+      "expires": "2027-12-31"
+    },
+    {
+      "package": "axios",
+      "reason": "Transitive dependency required by @stellar/stellar-sdk for Horizon HTTP transport layer.",
+      "expires": "2027-12-31"
+    }
+  ]
+}
