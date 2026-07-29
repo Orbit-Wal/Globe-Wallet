@@ -1,9 +1,9 @@
 'use client'
 
-import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
-import { BalanceCard } from '../../components/finance/BalanceCard'
-import { TransactionList } from '../../components/finance/TransactionList'
-import { CryptoConverter } from '../../components/finance/CryptoConverter'
+import { FinanceServicesProvider } from '@/hooks/useFinanceServices'
+import { BalanceCard } from '@/components/finance/BalanceCard'
+import { TransactionList } from '@/components/finance/TransactionList'
+import { CryptoConverter } from '@/components/finance/CryptoConverter'
 
 export default function FinanceDemoPage() {
   return (

@@ -1081,3 +1081,75 @@ export interface ITransactionSyncService {
   getRecentTransactions(limit: number): Promise<Transaction[]>;
   addTransaction(req: AddTransactionRequest): Promise<Transaction>;
 }
+
+// ── EVM chains (Base, Ethereum) ─────────────────────────────────────────────
+// First multi-chain slice: a parallel module alongside the Stellar-specific
+// wallet stack rather than a retrofit of IWalletService/AssetCode, which are
+// modeled tightly around Stellar accounts and assume a single G... address
+// space. Solana and Sui are tracked as follow-up work with their own
+// non-EVM signature schemes; see the linked issues for each.
+
+/** Chains supported by the EVM module. Both are EVM-equivalent — same
+ * account model, same signature scheme (secp256k1) — so they share one
+ * service implementation parameterized by network config. */
+export type EvmChainId = "base" | "ethereum";
+
+/** Native or ERC-20 assets surfaced by the EVM module. */
+export type EvmAssetSymbol = "ETH" | "USDC";
+
+export interface EvmNetworkConfig {
+  chainId: EvmChainId;
+  /** Numeric EVM chain id (e.g. 84532 for Base Sepolia). */
+  id: number;
+  name: string;
+  testnet: boolean;
+  rpcUrl: string;
+  blockExplorerUrl: string;
+  nativeCurrency: {
+    symbol: "ETH";
+    decimals: 18;
+  };
+  /** ERC-20 contracts available on this network, keyed by symbol. */
+  tokens: Partial<Record<Exclude<EvmAssetSymbol, "ETH">, { address: `0x${string}`; decimals: number }>>;
+}
+
+export interface EvmBalance {
+  symbol: EvmAssetSymbol;
+  /** Human-readable decimal amount (already scaled by the asset's decimals). */
+  amount: number;
+  /** Raw on-chain integer amount, as a string to avoid bigint/number precision loss. */
+  raw: string;
+  decimals: number;
+}
+
+export interface EvmAccountInfo {
+  chainId: EvmChainId;
+  address: `0x${string}`;
+  network: string;
+  blockExplorerUrl: string;
+}
+
+export type EvmTransactionStatus = "completed" | "pending" | "failed";
+
+export interface EvmTransactionResult {
+  success: boolean;
+  hash?: `0x${string}`;
+  status: EvmTransactionStatus;
+  error?: string;
+}
+
+export class EvmServiceError extends ServiceError {
+  constructor(message: string, code?: string) {
+    super(message, code);
+    this.name = "EvmServiceError";
+  }
+}
+
+export interface IEvmService {
+  getSupportedChains(): EvmNetworkConfig[];
+  getNetwork(chainId: EvmChainId): EvmNetworkConfig;
+  /** Checksum-validates via EIP-55, not just a shape/length regex. */
+  validateAddress(address: string): boolean;
+  getBalances(chainId: EvmChainId, address: string): Promise<EvmBalance[]>;
+  shortenKey(key: string, lead?: number, tail?: number): string;
+}

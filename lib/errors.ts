@@ -16,6 +16,7 @@ export const ErrorCodes = {
   ERR_SLIPPAGE_EXCEEDED: 'ERR_SLIPPAGE_EXCEEDED',
   ERR_STALE_QUOTE: 'ERR_STALE_QUOTE',
   ERR_NETWORK_FAILURE: 'ERR_NETWORK_FAILURE',
+  ERR_UNSUPPORTED_CHAIN: 'ERR_UNSUPPORTED_CHAIN',
 } as const
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes]
