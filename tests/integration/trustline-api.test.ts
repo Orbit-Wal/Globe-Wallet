@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { GET, POST } from '../../app/api/wallet/trustlines/route'
 import { financeServices } from '../../lib/services/container'
 

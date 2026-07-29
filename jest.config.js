@@ -12,7 +12,11 @@ const createJestConfig = nextJest({
 /** @type {import('jest').Config} */
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jest-environment-jsdom',
+  // jest-environment-jsdom doesn't provide fetch/Request/Response/Headers at
+  // all (not even via Node's globals — jsdom runs in its own VM sandbox).
+  // jest-fixed-jsdom is the same environment with those bridged back in from
+  // the real Node runtime, needed by tests that jest.spyOn(global, 'fetch').
+  testEnvironment: 'jest-fixed-jsdom',
   coverageProvider: 'v8',
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/e2e/'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],

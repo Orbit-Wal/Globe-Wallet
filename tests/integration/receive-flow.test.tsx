@@ -8,6 +8,7 @@ import { ReceiveForm } from '../../components/app/receive-form'
 import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
 import { FinanceServiceContainer } from '../../lib/services/container'
 import { TEST_STELLAR_ADDRESS } from '../../lib/finance-data'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 
 jest.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => (
@@ -45,27 +46,29 @@ function buildContainer() {
   return new FinanceServiceContainer(wallet as any, undefined, pricing as any, fiat as any)
 }
 
+function renderReceiveForm() {
+  return render(
+    <IntlTestProvider>
+      <FinanceServicesProvider services={buildContainer()}>
+        <ReceiveForm />
+      </FinanceServicesProvider>
+    </IntlTestProvider>,
+  )
+}
+
 describe('Receive flow integration — issue #22', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   it('loads receive address from wallet service', () => {
-    render(
-      <FinanceServicesProvider services={buildContainer()}>
-        <ReceiveForm />
-      </FinanceServicesProvider>
-    )
+    renderReceiveForm()
     expect(screen.getByTestId('receive-address')).toHaveTextContent(VALID_ADDRESS)
   })
 
   it('updates payment QR when amount and memo change', async () => {
     const user = userEvent.setup({ delay: null })
-    render(
-      <FinanceServicesProvider services={buildContainer()}>
-        <ReceiveForm />
-      </FinanceServicesProvider>
-    )
+    renderReceiveForm()
 
     await user.click(screen.getByTestId('tab-request'))
     await user.type(screen.getByTestId('receive-amount-input'), '20')
@@ -81,11 +84,7 @@ describe('Receive flow integration — issue #22', () => {
 
   it('disables payment actions when amount validation fails', async () => {
     const user = userEvent.setup({ delay: null })
-    render(
-      <FinanceServicesProvider services={buildContainer()}>
-        <ReceiveForm />
-      </FinanceServicesProvider>
-    )
+    renderReceiveForm()
 
     await user.click(screen.getByTestId('tab-request'))
     await user.type(screen.getByTestId('receive-amount-input'), '-1')

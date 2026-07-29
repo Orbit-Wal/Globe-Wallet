@@ -5,6 +5,7 @@ import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
 import { FinanceServiceContainer } from '../../lib/services/container'
 import { FixtureFactory } from '../../lib/fixtures'
 import type { IWalletService, IFiatService } from '../../lib/types'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 
 const mockTransactions = jest.fn().mockResolvedValue(FixtureFactory.getTransactionsCompact())
 
@@ -37,9 +38,11 @@ const mockServices = new FinanceServiceContainer(
 
 const renderTransactionList = () => {
   return render(
-    <FinanceServicesProvider services={mockServices}>
-      <TransactionList />
-    </FinanceServicesProvider>,
+    <IntlTestProvider>
+      <FinanceServicesProvider services={mockServices}>
+        <TransactionList />
+      </FinanceServicesProvider>
+    </IntlTestProvider>,
   )
 }
 

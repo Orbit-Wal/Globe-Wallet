@@ -3,6 +3,7 @@ import { BalanceCard } from '../../components/app/balance-card'
 import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
 import { ActiveAccountProvider } from '../../hooks/useActiveAccount'
 import { FinanceServiceContainer } from '../../lib/services/container'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 import React from 'react'
 
 const mockPricing = {
@@ -30,11 +31,13 @@ const renderBalanceCard = () => {
     mockFiat as any,
   )
   return render(
-    <FinanceServicesProvider services={services}>
-      <ActiveAccountProvider>
-        <BalanceCard />
-      </ActiveAccountProvider>
-    </FinanceServicesProvider>,
+    <IntlTestProvider>
+      <FinanceServicesProvider services={services}>
+        <ActiveAccountProvider>
+          <BalanceCard />
+        </ActiveAccountProvider>
+      </FinanceServicesProvider>
+    </IntlTestProvider>,
   )
 }
 
