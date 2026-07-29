@@ -4,18 +4,20 @@ import { Home, ArrowLeftRight, CreditCard, PiggyBank, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { SAFE_AREA_BOTTOM_NAV_PB } from "@/lib/a11y/safe-area"
 
 const navItems = [
-  { icon: Home,           label: "Home",    href: "/"        },
-  { icon: ArrowLeftRight, label: "Send",    href: "/send"    },
-  { icon: CreditCard,     label: "Cards",   href: "/cards"   },
-  { icon: PiggyBank,      label: "Savings", href: "/savings" },
-  { icon: User,           label: "Profile", href: "/profile" },
+  { icon: Home,           labelKey: "bottomNav.home",    href: "/"        },
+  { icon: ArrowLeftRight, labelKey: "bottomNav.send",    href: "/send"    },
+  { icon: CreditCard,     labelKey: "bottomNav.cards",   href: "/cards"   },
+  { icon: PiggyBank,      labelKey: "bottomNav.savings", href: "/savings" },
+  { icon: User,           labelKey: "bottomNav.profile", href: "/profile" },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
+  const t = useTranslations()
 
   return (
     <nav
@@ -23,21 +25,21 @@ export function BottomNav() {
       data-testid="bottom-nav"
       aria-label="Main navigation"
     >
-      {/* role="list" is required because list-style is reset by Tailwind/browser normalisation */}
       <ul
         role="list"
         className="flex items-center justify-around px-2 pt-2"
         style={{ paddingBottom: SAFE_AREA_BOTTOM_NAV_PB }}
       >
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname.endsWith(item.href)
+          const label = t(item.labelKey)
           return (
-            <li key={item.label} className="flex-1">
+            <li key={item.labelKey} className="flex-1">
               <Link
                 href={item.href}
-                data-testid={`nav-${item.label.toLowerCase()}`}
+                data-testid={`nav-${label.toLowerCase()}`}
                 aria-current={isActive ? "page" : undefined}
-                aria-label={item.label}
+                aria-label={label}
                 className={cn(
                   "flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-medium transition-all duration-300",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
@@ -55,7 +57,7 @@ export function BottomNav() {
                 >
                   <item.icon className="h-5 w-5" />
                 </span>
-                <span aria-hidden="true">{item.label}</span>
+                <span aria-hidden="true">{label}</span>
               </Link>
             </li>
           )

@@ -38,9 +38,11 @@ import {
 } from "@/components/ui/select";
 import { calculateFee } from "@/lib/helpers/format";
 import { isFederatedAddress } from "@/lib/helpers/send-utils";
+import { useTranslations } from "next-intl";
 import type { AssetCode, SendConfirmation } from "@/lib/types";
 
 export function SendForm() {
+  const t = useTranslations();
   const { validateAddress } = useWallet();
   const { send, isProcessing, status, error, result, reset } = useWalletSend();
   const { formatAsset } = usePricing();
@@ -93,31 +95,27 @@ export function SendForm() {
     // If user typed a federated address, guard against in-flight or failed lookups
     if (!contactsState.selected && isFederatedAddress(address)) {
       if (lookupResult.status === "resolving") {
-        setFormError("Address is still resolving. Please wait a moment.");
+        setFormError(t("common.addressResolving"));
         return;
       }
       if (lookupResult.status === "not-found") {
-        setFormError(
-          "No federation record found for this address. Check the address and try again.",
-        );
+        setFormError(t("common.noFederationRecord"));
         return;
       }
       if (lookupResult.status === "error") {
-        setFormError(lookupResult.error ?? "Address lookup failed.");
+        setFormError(lookupResult.error ?? t("common.addressLookupFailed"));
         return;
       }
     }
 
     if (!validateAddress(effectiveAddress)) {
-      setFormError(
-        "Invalid Stellar address. Must be 56 characters starting with G.",
-      );
+      setFormError(t("common.invalidStellarAddress"));
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (!Number.isFinite(numAmount) || numAmount <= 0) {
-      setFormError("Please enter a valid amount greater than zero.");
+      setFormError(t("common.invalidAmount"));
       return;
     }
 
@@ -126,7 +124,7 @@ export function SendForm() {
       assets.some((a) => a.code === selectedAsset) &&
       numAmount > currentAssetBalance
     ) {
-      setFormError(`Insufficient ${selectedAsset} balance`);
+      setFormError(`${t("common.insufficientBalance")} ${selectedAsset}`);
       return;
     }
 
@@ -192,9 +190,7 @@ export function SendForm() {
             ) : (
               <CheckCircle2 className="w-5 h-5 text-green-500" aria-hidden />
             )}
-            {isPending ? "Send Submitted" : "Send Complete"}
-            <CheckCircle2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400" aria-hidden />
-            Send Complete
+            {isPending ? t("common.sendSubmitted") : t("common.sendComplete")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -205,14 +201,13 @@ export function SendForm() {
             className={
               isPending
                 ? "p-3 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm flex flex-col gap-1"
-                : "p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex flex-col gap-1"
+                : "p-3 rounded-md bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-sm flex flex-col gap-1"
             }
-            className="p-3 rounded-md bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-sm flex flex-col gap-1"
           >
             <span className="font-semibold flex items-center gap-2">
               {isPending
-                ? "Submitted — awaiting network confirmation"
-                : "Transaction Successful"}
+                ? t("common.transactionAwaitingConfirmation")
+                : t("common.transactionSuccessful")}
               {result.status && <TransactionStatusBadge status={result.status} />}
             </span>
             {result.hash && (
@@ -229,7 +224,7 @@ export function SendForm() {
             onClick={handleReset}
             data-testid="send-again-btn"
           >
-            Send another
+            {t("common.sendAnother")}
           </Button>
         </CardFooter>
       </Card>
@@ -249,7 +244,7 @@ export function SendForm() {
               variant="ghost"
               size="icon"
               className="h-6 w-6 mr-1"
-              aria-label="Back to form"
+              aria-label={t("common.backToForm")}
               data-testid="back-button"
               onClick={() => {
                 setStep("form");
@@ -261,12 +256,12 @@ export function SendForm() {
             </Button>
           )}
           <Send className="w-5 h-5 text-primary" aria-hidden />
-          {step === "confirm" ? "Confirm Send" : "Send Assets"}
+          {step === "confirm" ? t("common.confirmSend") : t("common.sendAssets")}
         </CardTitle>
         <CardDescription>
           {step === "confirm"
-            ? "Review the details before confirming."
-            : "Transfer Lumens or tokens to any Stellar address or federated name."}
+            ? t("common.reviewDetails")
+            : t("common.transferXlm")}
         </CardDescription>
       </CardHeader>
 
@@ -278,7 +273,7 @@ export function SendForm() {
         >
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Quick Select Contact</label>
+              <label className="text-sm font-medium">{t("common.quickSelectContact")}</label>
               <ContactPicker
                 contacts={contactsState.contacts}
                 selected={contactsState.selected}
@@ -291,12 +286,12 @@ export function SendForm() {
             {!contactsState.selected?.address && (
               <div className="space-y-1">
                 <label htmlFor={addressId} className="text-sm font-medium">
-                  Recipient Address
+                  {t("common.recipientAddress")}
                 </label>
                 <Input
                   id={addressId}
                   data-testid="address-input"
-                  placeholder="e.g. GDXSPAY… or alice*stellar.org"
+                  placeholder={t("common.recipientPlaceholder")}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className="bg-background/50"
@@ -312,7 +307,7 @@ export function SendForm() {
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-2">
                 <label htmlFor={amountId} className="text-sm font-medium">
-                  Amount
+                  {t("common.amount")}
                 </label>
                 <Input
                   id={amountId}
@@ -328,7 +323,7 @@ export function SendForm() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium" id="asset-select-label">
-                  Asset
+                  {t("send.asset")}
                 </label>
                 <Select
                   value={selectedAsset}
@@ -339,7 +334,7 @@ export function SendForm() {
                     aria-labelledby="asset-select-label"
                     data-testid="asset-select"
                   >
-                    <SelectValue placeholder="Asset" />
+                    <SelectValue placeholder={t("send.asset")} />
                   </SelectTrigger>
                   <SelectContent>
                     {assets.map((asset) => (
@@ -364,14 +359,14 @@ export function SendForm() {
 
             <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
               <span>
-                Balance:{" "}
+                {t("common.balance")}:{" "}
                 <span data-testid="current-balance">
                   {formatAsset(currentAssetBalance, selectedAsset)}
                 </span>
               </span>
               {parseFloat(amount) > 0 && (
                 <span data-testid="fee-estimate">
-                  Est. fee: {estimatedFee.toFixed(6)} {selectedAsset}
+                  {t("common.estFee")}: {estimatedFee.toFixed(6)} {selectedAsset}
                 </span>
               )}
             </div>
@@ -381,12 +376,12 @@ export function SendForm() {
                 htmlFor={memoId}
                 className="text-sm font-medium text-muted-foreground"
               >
-                Memo (optional)
+                {t("common.memoOptional")}
               </label>
               <Input
                 id={memoId}
                 data-testid="memo-input"
-                placeholder="Transaction note"
+                placeholder={t("common.transactionNote")}
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 className="bg-background/50 h-8 text-sm"
@@ -409,7 +404,7 @@ export function SendForm() {
               data-testid="review-button"
             >
               <Send className="w-4 h-4 mr-2" aria-hidden />
-              Review Send
+              {t("common.review")}
             </Button>
           </CardFooter>
         </form>
@@ -440,12 +435,12 @@ export function SendForm() {
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden />
-                  Processing…
+                  {t("common.processing")}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4 mr-2" aria-hidden />
-                  Confirm Send
+                  {t("common.confirmSend")}
                 </>
               )}
             </Button>
@@ -454,7 +449,7 @@ export function SendForm() {
               variant="outline"
               size="icon"
               onClick={handleReset}
-              aria-label="Reset form"
+              aria-label={t("common.resetForm")}
               data-testid="reset-btn"
             >
               <RefreshCw className="w-4 h-4" aria-hidden />
