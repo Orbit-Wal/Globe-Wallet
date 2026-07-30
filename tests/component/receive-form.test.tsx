@@ -10,6 +10,7 @@ import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
 import { FinanceServiceContainer } from '../../lib/services/container'
 import { TEST_STELLAR_ADDRESS } from '../../lib/finance-data'
 import { toast } from 'sonner'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 
 jest.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => (
@@ -59,9 +60,11 @@ function renderReceiveForm() {
     mockFiat as any
   )
   return render(
-    <FinanceServicesProvider services={container}>
-      <ReceiveForm />
-    </FinanceServicesProvider>
+    <IntlTestProvider>
+      <FinanceServicesProvider services={container}>
+        <ReceiveForm />
+      </FinanceServicesProvider>
+    </IntlTestProvider>
   )
 }
 

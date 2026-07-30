@@ -16,6 +16,7 @@ import { PayoutSummary } from "@/components/dashboard/PayoutSummary";
 import { FeeDisplay } from "@/components/ui/FeeDisplay";
 import type { UseOffRampReturn } from "@/hooks/useOffRamp";
 import type { OffRampPaymentMethod, PayoutBreakdown } from "@/lib/off-ramp-utils";
+import { useTranslations } from "next-intl";
 
 interface OffRampFormProps {
   hook: UseOffRampReturn;
@@ -36,6 +37,7 @@ export function OffRampForm({
   balances,
   "data-testid": testId = "off-ramp-form",
 }: OffRampFormProps) {
+  const t = useTranslations()
   const {
     amount,
     asset,
@@ -62,9 +64,9 @@ export function OffRampForm({
       {/* Amount & Asset */}
       <div className="space-y-2 mb-4">
         <div className="flex items-center justify-between">
-          <Label htmlFor="withdraw-amount">Amount to withdraw</Label>
+          <Label htmlFor="withdraw-amount">{t('common.amountToWithdraw')}</Label>
           <span className="text-xs text-muted-foreground">
-            Balance: {(balances[asset] ?? 0).toFixed(2)} {asset}
+            {t('common.balance')}: {(balances[asset] ?? 0).toFixed(2)} {asset}
           </span>
         </div>
         <div className="flex gap-2">
@@ -77,7 +79,7 @@ export function OffRampForm({
             onChange={(e) => setAmount(e.target.value)}
             min={0}
             step="any"
-            aria-label="Withdrawal amount"
+            aria-label={t('common.amountToWithdraw')}
             aria-describedby={!validation.valid && validation.errorCode === "INVALID_AMOUNT" ? "amount-error" : undefined}
             className="flex-1"
           />
@@ -103,7 +105,7 @@ export function OffRampForm({
               onClick={setMaxAmount}
               aria-label="Use maximum available balance"
             >
-              Use max
+              {t('common.useMax')}
             </Button>
           </div>
         )}
@@ -117,7 +119,7 @@ export function OffRampForm({
 
       {/* Payment Methods */}
       <div className="space-y-3 mb-4">
-        <Label>Payment method</Label>
+        <Label>{t('common.paymentMethod')}</Label>
         <div role="radiogroup" aria-label="Payment methods">
           {methods.map((method) => (
             <div
@@ -152,13 +154,13 @@ export function OffRampForm({
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{method.name}</span>
                     {!method.enabled && (
-                      <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('common.comingSoon')}</Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">{method.details}</p>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span>
-                      Fee:{" "}
+                      {t('common.fee')}:{" "}
                       <FeeDisplay
                         feeStr={method.fees}
                         usdValue={breakdown?.usdValue ?? 0}
@@ -170,7 +172,7 @@ export function OffRampForm({
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Limits: ${method.limits.min} – ${method.limits.max.toLocaleString()}
+                    {t('common.limits')}: ${method.limits.min} – ${method.limits.max.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -207,7 +209,7 @@ export function OffRampForm({
         disabled={!validation.valid || isLoading}
         aria-busy={isLoading}
       >
-        {isLoading ? "Processing..." : "Withdraw to Bank"}
+        {isLoading ? t('common.processing') : t('common.withdrawToBank')}
       </Button>
     </form>
   );

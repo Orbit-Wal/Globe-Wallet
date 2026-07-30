@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { CryptoConverter } from '../../components/finance/CryptoConverter'
 import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
 import { FinanceServiceContainer } from '../../lib/services/container'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 import React from 'react'
 
 const mockAssetService = {
@@ -39,9 +40,11 @@ const mockServices = new FinanceServiceContainer(
 
 const renderWithServices = (component: React.ReactNode) => {
   return render(
-    <FinanceServicesProvider services={mockServices}>
-      {component}
-    </FinanceServicesProvider>,
+    <IntlTestProvider>
+      <FinanceServicesProvider services={mockServices}>
+        {component}
+      </FinanceServicesProvider>
+    </IntlTestProvider>,
   )
 }
 
@@ -109,6 +112,6 @@ describe('CryptoConverter', () => {
 
   it('should have proper accessibility attributes', () => {
     renderWithServices(<CryptoConverter />)
-    expect(screen.getByLabelText('Swap assets')).toBeInTheDocument()
+    expect(screen.getByLabelText('Swap')).toBeInTheDocument()
   })
 })

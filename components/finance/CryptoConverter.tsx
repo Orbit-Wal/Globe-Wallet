@@ -10,20 +10,22 @@ import { useErrorBoundary } from '../../hooks/useErrorBoundary'
 import { AssetCode } from '../../lib/types'
 import { ArrowUpDown, Calculator } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
+import { useTranslations } from 'next-intl'
 
 interface CryptoConverterProps {
   className?: string
 }
 
-const ASSET_OPTIONS: { value: AssetCode; label: string }[] = [
-  { value: 'XLM', label: 'Stellar Lumens (XLM)' },
-  { value: 'USDC', label: 'USD Coin (USDC)' },
-  { value: 'USDT', label: 'Tether USD (USDT)' }
-]
-
 export function CryptoConverter({ className }: CryptoConverterProps) {
+  const t = useTranslations()
   const { convert, format } = useAssets()
   const { hasError, error, withErrorBoundary } = useErrorBoundary()
+  
+  const ASSET_OPTIONS: { value: AssetCode; label: string }[] = [
+    { value: 'XLM', label: t('common.stellarLumens') },
+    { value: 'USDC', label: t('common.usdCoin') },
+    { value: 'USDT', label: t('common.tetherUsd') }
+  ]
   
   const [fromAsset, setFromAsset] = useState<AssetCode>('XLM')
   const [toAsset, setToAsset] = useState<AssetCode>('USDC')
@@ -64,14 +66,14 @@ export function CryptoConverter({ className }: CryptoConverterProps) {
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Calculator className="w-5 h-5" />
-          <span>Crypto Converter</span>
+          <span>{t('common.cryptoConverter')}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {hasError && (
           <Alert variant="destructive" data-testid="converter-error">
             <AlertDescription>
-              {error?.message || 'Conversion failed'}
+              {error?.message || t('common.conversionFailed')}
             </AlertDescription>
           </Alert>
         )}
@@ -79,7 +81,7 @@ export function CryptoConverter({ className }: CryptoConverterProps) {
         <div className="space-y-4">
           {/* From Section */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">From</label>
+            <label className="text-sm font-medium">{t('common.fromLabel')}</label>
             <div className="flex space-x-2">
               <Input
                 type="number"
@@ -114,7 +116,7 @@ export function CryptoConverter({ className }: CryptoConverterProps) {
               size="icon"
               onClick={swapAssets}
               data-testid="swap-button"
-              aria-label="Swap assets"
+              aria-label={t('common.swap')}
             >
               <ArrowUpDown className="w-4 h-4" />
             </Button>
@@ -122,7 +124,7 @@ export function CryptoConverter({ className }: CryptoConverterProps) {
 
           {/* To Section */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">To</label>
+            <label className="text-sm font-medium">{t('common.toLabel')}</label>
             <div className="flex space-x-2">
               <Input
                 type="text"
@@ -154,13 +156,13 @@ export function CryptoConverter({ className }: CryptoConverterProps) {
             className="w-full"
             data-testid="convert-button"
           >
-            {calculating ? 'Converting...' : 'Convert'}
+            {calculating ? t('common.converting') : t('common.convertNow')}
           </Button>
 
           {/* Result Display */}
           {result !== null && (
             <div className="p-3 bg-muted rounded-lg" data-testid="conversion-result">
-              <div className="text-sm text-muted-foreground">Conversion Result</div>
+              <div className="text-sm text-muted-foreground">{t('common.conversionResult')}</div>
               <div className="text-lg font-semibold">
                 {format(Number(amount), fromAsset)} = {format(result, toAsset)}
               </div>

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Copy, Share, QrCode } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,20 +10,21 @@ import { QRDisplay } from "@/components/ui/qr-display"
 import { ReceiveSummary } from "@/components/dashboard/receive-summary"
 import { useReceive } from "@/hooks/useReceive"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 
-async function copyText(text: string, label: string) {
+async function copyText(text: string, label: string, t: (key: string, params?: any) => string) {
   try {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       throw new Error("Clipboard API is unavailable")
     }
     await navigator.clipboard.writeText(text)
-    toast.success(`${label} copied to clipboard`)
+    toast.success(t("common.copiedToClipboard", { label }))
   } catch {
-    toast.error(`Couldn't copy ${label.toLowerCase()}. Please copy it manually.`)
+    toast.error(t("common.couldNotCopy", { label: label.toLowerCase() }))
   }
 }
 
-async function shareText(title: string, text: string, fallbackLabel: string) {
+async function shareText(title: string, text: string, fallbackLabel: string, t: (key: string, params?: any) => string) {
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
       await navigator.share({ title, text })
@@ -34,10 +35,11 @@ async function shareText(title: string, text: string, fallbackLabel: string) {
       }
     }
   }
-  await copyText(text, fallbackLabel)
+  await copyText(text, fallbackLabel, t)
 }
 
 export function ReceiveForm() {
+  const t = useTranslations();
   const {
     address,
     hasAccount,
@@ -55,7 +57,7 @@ export function ReceiveForm() {
     return (
       <Card className="p-6" data-testid="receive-no-account">
         <p className="py-10 text-center text-sm text-muted-foreground">
-          No Stellar account is available yet. Connect or create a wallet to receive XLM.
+          {t("common.noStellarAccount")}
         </p>
       </Card>
     )
@@ -65,10 +67,10 @@ export function ReceiveForm() {
     <Tabs defaultValue="address" className="w-full" data-testid="receive-tabs">
       <TabsList className="grid w-full grid-cols-2" aria-label="Receive options">
         <TabsTrigger value="address" data-testid="tab-address">
-          Address
+          {t("common.addressTab")}
         </TabsTrigger>
         <TabsTrigger value="request" data-testid="tab-request">
-          Request
+          {t("common.requestTab")}
         </TabsTrigger>
       </TabsList>
 
@@ -77,7 +79,7 @@ export function ReceiveForm() {
           <div className="space-y-4 text-center">
             <QRDisplay
               value={addressQR.value}
-              label="QR code for Stellar receive address"
+              label={t("common.qrCodeForAddress")}
               testId="address-qr"
             />
 
@@ -86,7 +88,7 @@ export function ReceiveForm() {
                 htmlFor="receive-address-display"
                 className="text-sm font-medium text-muted-foreground"
               >
-                Your Stellar Address
+                {t("receive.yourAddress")}
               </Label>
               <div className="flex items-center gap-2 rounded-lg bg-secondary p-3">
                 <code
@@ -101,9 +103,9 @@ export function ReceiveForm() {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 shrink-0 p-0"
-                  aria-label="Copy address"
+                  aria-label={t("receive.copyAddress")}
                   data-testid="copy-address-inline"
-                  onClick={() => copyText(address, "Address")}
+                  onClick={() => copyText(address, t("common.address"), t)}
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -116,20 +118,20 @@ export function ReceiveForm() {
                 variant="outline"
                 className="flex-1"
                 data-testid="copy-address-button"
-                onClick={() => copyText(address, "Address")}
+                onClick={() => copyText(address, t("common.address"), t)}
               >
                 <Copy className="mr-2 h-4 w-4" />
-                Copy
+                {t("common.copy")}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 className="flex-1"
                 data-testid="share-address-button"
-                onClick={() => shareText("My Stellar Address", getShareText("address"), "Address")}
+                onClick={() => shareText(t("common.myStellarAddress"), getShareText("address"), t("common.address"), t)}
               >
                 <Share className="mr-2 h-4 w-4" />
-                Share
+                {t("common.share")}
               </Button>
             </div>
           </div>
@@ -139,11 +141,10 @@ export function ReceiveForm() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <QrCode className="h-4 w-4" aria-hidden="true" />
-              <span>Scan QR code or copy address to receive XLM</span>
+              <span>{t("common.scanQrOrCopy")}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Only send Stellar Lumens (XLM) to this address. Sending other cryptocurrencies may
-              result in permanent loss.
+              {t("common.onlySendXlm")}
             </p>
           </div>
         </Card>
@@ -153,7 +154,7 @@ export function ReceiveForm() {
         <Card className="p-6" data-testid="receive-request-card">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="receive-amount">Amount (XLM)</Label>
+              <Label htmlFor="receive-amount">{t("common.amount")} ({t("common.xlm")})</Label>
               <Input
                 id="receive-amount"
                 type="number"
@@ -178,7 +179,7 @@ export function ReceiveForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="receive-memo">Memo (Optional)</Label>
+              <Label htmlFor="receive-memo">{t("common.memoOptional")}</Label>
               <Input
                 id="receive-memo"
                 placeholder="Payment reference"
@@ -191,7 +192,7 @@ export function ReceiveForm() {
             <div className="space-y-4 text-center">
               <QRDisplay
                 value={paymentQR.value}
-                label="QR code for payment request"
+                label={t("common.qrCodeForPayment")}
                 testId="payment-qr"
               />
 
@@ -205,10 +206,10 @@ export function ReceiveForm() {
                 className="flex-1"
                 disabled={!!amountError}
                 data-testid="copy-payment-button"
-                onClick={() => copyText(paymentQR.value, "Payment request")}
+                onClick={() => copyText(paymentQR.value, t("common.paymentRequest"), t)}
               >
                 <Copy className="mr-2 h-4 w-4" />
-                Copy
+                {t("common.copy")}
               </Button>
               <Button
                 type="button"
@@ -218,14 +219,15 @@ export function ReceiveForm() {
                 data-testid="share-payment-button"
                 onClick={() =>
                   shareText(
-                    "Payment Request",
+                    t("common.paymentRequestTitle"),
                     getShareText("payment-request"),
-                    "Payment request"
+                    t("common.paymentRequest"),
+                    t
                   )
                 }
               >
                 <Share className="mr-2 h-4 w-4" />
-                Share
+                {t("common.share")}
               </Button>
             </div>
           </div>

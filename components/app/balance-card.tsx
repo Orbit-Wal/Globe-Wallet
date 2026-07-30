@@ -12,8 +12,10 @@ import { useActiveAccount } from "@/hooks/useActiveAccount"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { CurrencyCode } from "@/lib/types"
+import { useTranslations } from "next-intl"
 
 export function BalanceCard() {
+  const t = useTranslations()
   const [hidden, setHidden] = useState(false)
   const { wallets, loading } = useBalances()
   const { formatMoney } = useWallets()
@@ -32,7 +34,7 @@ export function BalanceCard() {
             <AvatarFallback className="bg-primary text-primary-foreground">TA</AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-xs text-muted-foreground">Welcome back</p>
+            <p className="text-xs text-muted-foreground">{t('common.welcomeBack')}</p>
             <p className="text-sm font-semibold text-foreground">Tunde Adeyemi</p>
           </div>
         </div>
@@ -41,7 +43,7 @@ export function BalanceCard() {
           <button
             type="button"
             className="relative flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            aria-label="Notifications"
+            aria-label={t('common.notifications')}
           >
             <Bell className="h-4 w-4" />
             <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
@@ -97,7 +99,7 @@ export function BalanceCard() {
                 type="button"
                 onClick={() => setHidden((v) => !v)}
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-foreground/15"
-                aria-label={hidden ? "Show balance" : "Hide balance"}
+                aria-label={hidden ? t('common.showBalance') : t('common.hideBalance')}
                 data-testid="toggle-balance-visibility"
               >
                 {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -107,9 +109,14 @@ export function BalanceCard() {
             {fiatWallet ? (
               <>
                 <p className="text-xs text-primary-foreground/80">
-                  {fiatWallet.label || `${fiatWallet.code} Wallet`} balance
+                  {t('common.walletBalance', { wallet: fiatWallet.label || fiatWallet.code })}
                 </p>
-                <p className="mt-1 text-4xl font-bold tracking-tight text-balance" data-testid="total-value">
+                <p
+                  className="mt-1 text-4xl font-bold tracking-tight text-balance"
+                  data-testid="total-value"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
                   {formatMoney(fiatWallet.balance, fiatWallet.code, hidden)}
                 </p>
 
@@ -126,18 +133,18 @@ export function BalanceCard() {
                     aria-atomic="true"
                   >
                     {(fiatWallet.changePct ?? 0) >= 0 ? "+" : ""}
-                    {fiatWallet.changePct ?? 0}% this week
+                    {fiatWallet.changePct ?? 0}% {t('common.thisWeek')}
                   </span>
                   <button
                     type="button"
                     className="flex items-center gap-1 rounded-full bg-primary-foreground px-3 py-1.5 text-xs font-semibold text-primary transition-transform hover:scale-105"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Add Money
+                    <Plus className="h-3.5 w-3.5" /> {t('common.addMoney')}
                   </button>
                 </div>
               </>
             ) : (
-              <p className="text-sm">Wallet not found</p>
+              <p className="text-sm">{t('common.walletNotFound')}</p>
             )}
           </>
         )}

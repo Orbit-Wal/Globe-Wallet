@@ -7,6 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SendForm } from '../../components/app/send-form'
 import { FinanceServicesProvider } from '../../hooks/useFinanceServices'
 import { FinanceServiceContainer } from '../../lib/services/container'
+import { IntlTestProvider } from '../test-utils/intl-provider'
 
 const VALID_ADDRESS = 'GDXSPAYWALLET7QK3MUKXHV2RZ4D6FJ5N2YHV3K2L9P8QW1ZC4T6BNRX'
 
@@ -51,9 +52,11 @@ function buildMockContainer(overrides: Record<string, any> = {}) {
 
 function renderWith(container: FinanceServiceContainer) {
   return render(
-    <FinanceServicesProvider services={container}>
-      <SendForm />
-    </FinanceServicesProvider>,
+    <IntlTestProvider>
+      <FinanceServicesProvider services={container}>
+        <SendForm />
+      </FinanceServicesProvider>
+    </IntlTestProvider>,
   )
 }
 

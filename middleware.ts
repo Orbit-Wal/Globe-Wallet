@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import createMiddleware from 'next-intl/middleware'
 
 // --- RATE LIMIT CONFIGURATION ---
 interface RateLimitRecord {
@@ -9,9 +10,9 @@ interface RateLimitRecord {
 const rateLimitCache = new Map<string, RateLimitRecord>();
 
 const ROUTE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
-  '/api/wallet/send': { windowMs: 60 * 1000, maxRequests: 5 },    // Costly mutation
-  '/api/federation': { windowMs: 60 * 1000, maxRequests: 20 },   // Intermediate cost lookup
-  '/api/rates': { windowMs: 60 * 1000, maxRequests: 60 },        // Standard lookup
+  '/api/wallet/send': { windowMs: 60 * 1000, maxRequests: 5 },
+  '/api/federation': { windowMs: 60 * 1000, maxRequests: 20 },
+  '/api/rates': { windowMs: 60 * 1000, maxRequests: 60 },
 }
 
 const protectedPaths = ['/api/off-ramp', '/api/transactions/sync', '/api/transactions']
@@ -117,7 +118,6 @@ export async function middleware(request: NextRequest) {
         )
       }
     }
-  }
 
   // 1.5. AUTHENTICATION GATING
   if (requiresAuthentication(pathname, request.method)) {
@@ -140,27 +140,31 @@ export async function middleware(request: NextRequest) {
   const origin = request.headers.get('origin') ?? ''
   const isAllowedOrigin = allowedOrigins.includes(origin) || origin === ''
 
-  const response = NextResponse.next()
+    const response = NextResponse.next()
 
-  if (isAllowedOrigin) {
-    response.headers.set('Access-Control-Allow-Origin', origin)
-  } else {
-    response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0])
+    if (isAllowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', origin)
+    } else {
+      response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0])
+    }
+
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 204,
+        headers: response.headers,
+      })
+    }
+
+    return response
   }
 
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-  if (request.method === 'OPTIONS') {
-    return new NextResponse(null, {
-      status: 204,
-      headers: response.headers,
-    })
-  }
-
-  return response
+  // Handle i18n for non-api routes
+  return intlMiddleware(request)
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/((?!_next|_vercel|.*\\..*).*)', '/api/:path*'],
 }
