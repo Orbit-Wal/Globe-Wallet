@@ -1,8 +1,13 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { financeServices } from '@/lib/services/container'
 import { AssetCode, ChangeTrustRequest } from '@/lib/types'
+import { validateBearerToken } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!validateBearerToken(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const trustlines = await financeServices.wallet.getTrustlines();
     return NextResponse.json(trustlines, { status: 200 })
@@ -11,7 +16,11 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  if (!validateBearerToken(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json() as ChangeTrustRequest;
     
