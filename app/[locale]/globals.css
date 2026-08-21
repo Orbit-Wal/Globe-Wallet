@@ -208,3 +208,33 @@
 .animate-fade-in {
   animation: fade-in 0.2s ease-out forwards;
 }
+
+/*
+ * Issue #89: respect prefers-reduced-motion for every animation/transition
+ * in the app, not just the hand-written .animate-* utilities above.
+ *
+ * This has to be the "nuclear option" pattern (collapse every animation and
+ * transition duration to near-zero for *, *::before, *::after) rather than
+ * a per-component opt-out, because the animated surfaces this issue calls
+ * out — Radix's data-[state=open]:animate-in/animate-out on dialog.tsx,
+ * sheet.tsx, drawer.tsx (via tw-animate-css), any future Tailwind
+ * `transition-*`/`animate-*` utility class, and the local @keyframes above —
+ * all come from different mechanisms with no single shared class to gate.
+ * A global media-query override is the only place that reaches all of them
+ * without hunting down and gating every call site individually.
+ *
+ * animation-duration/transition-duration are set to 0.01ms rather than 0s
+ * so that JS relying on `transitionend`/`animationend` firing (e.g. Radix's
+ * own open/close state machine) still receives its completion event instead
+ * of silently never firing.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
