@@ -62,7 +62,9 @@ export default function ConvertPage() {
 
   // Debounce Ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Issue #145: countdownTimerRef was scaffolded for a quote-expiration
+  // countdown UI that was never built (no slippage panel/countdown exists
+  // in this component) — removed as dead code rather than left unused.
 
   // Fetch summary exchange rate for header card
   useEffect(() => {
