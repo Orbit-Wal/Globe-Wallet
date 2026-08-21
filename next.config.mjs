@@ -60,6 +60,10 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Issue #105: standalone output so the Dockerfile can ship a minimal
+  // image (just .next/standalone + static assets) instead of the full
+  // node_modules tree.
+  output: 'standalone',
   turbopack: {
     root: process.cwd(),
   },

@@ -1,0 +1,46 @@
+# Issue #105 — deployment topology.
+#
+# Current reality: this app is self-contained. Its own app/api/* routes call
+# Horizon/Soroban RPC directly (see lib/services/stellar-payment.service.ts,
+# lib/services/soroban.service.ts) and persist to lib/db/mock-db.ts, an
+# in-memory store — there is no live wiring to the separate Orbit-Wal/backend
+# service today (see backend's own issue #21, "Zero integration with the
+# Orbit-Wal/contract Soroban contracts"). So this compose file runs exactly
+# one service.
+#
+# The commented `backend` service below documents where that integration
+# would plug in once it exists: Orbit-Wal/backend would become this app's
+# upstream for account/contract operations instead of this app calling
+# Horizon/Soroban directly, and mock-db.ts would be replaced by whatever
+# real datastore backend uses (see docs/issue-80.md's retention policy).
+# Uncomment and point web's env at it once that integration is real —
+# don't wire this up speculatively against an API shape that doesn't exist
+# yet.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+
+  # backend:
+  #   # Orbit-Wal/backend, cloned as a sibling directory once this app
+  #   # actually calls it instead of Horizon/Soroban directly.
+  #   build:
+  #     context: ../backend
+  #   ports:
+  #     - '4000:4000'
+  #   environment:
+  #     NODE_ENV: production
+  #
+  # web:
+  #   environment:
+  #     BACKEND_API_URL: http://backend:4000
+  #   depends_on:
+  #     - backend
