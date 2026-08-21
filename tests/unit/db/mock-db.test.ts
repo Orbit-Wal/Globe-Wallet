@@ -132,4 +132,33 @@ describe('MockDB', () => {
       expect(count).toBeGreaterThanOrEqual(1)
     })
   })
+
+  // Issue #80: saveTransaction has no cap/eviction — the in-memory array
+  // grows for the lifetime of the process. This test documents that concretely
+  // rather than leaving it as an assertion in a doc. See docs/issue-80.md for
+  // the retention/pagination policy the real datastore replacing mock-db.ts
+  // must implement (this test intentionally does NOT assert a cap exists —
+  // adding a cap to the mock itself would mask the real problem, see the doc).
+  describe('unbounded growth (Issue #80)', () => {
+    it('retains every saved transaction with no upper bound', async () => {
+      const before = (await db.getTransactions()).length
+
+      const N = 2000
+      for (let i = 0; i < N; i++) {
+        await db.saveTransaction({
+          id: `growth-test-${i}`,
+          ...BASE_TX,
+          name: `Growth Test ${i}`,
+        })
+      }
+
+      const after = await db.getTransactions()
+      // Every single one of the N inserts is still present — nothing was
+      // evicted, truncated, or archived. This is the bug: a real datastore
+      // must apply the retention policy in docs/issue-80.md instead of
+      // retaining an unbounded in-process array like this.
+      expect(after.length).toBe(before + N)
+      expect(after.filter(t => t.id.startsWith('growth-test-')).length).toBe(N)
+    })
+  })
 })
