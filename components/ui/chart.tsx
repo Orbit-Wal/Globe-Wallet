@@ -24,6 +24,66 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
+/*
+ * Issue #81: ChartStyle below renders a <style> block via
+ * dangerouslySetInnerHTML, interpolating `id` and each config entry's
+ * `color`/`theme` values (and its object key) directly into a raw CSS/HTML
+ * string.
+ *
+ * Data-flow trace of every value that reaches that string, as of this fix:
+ *   - `THEMES` keys/values: module-level constant ({ light: '', dark:
+ *     '.dark' }), never externally influenced.
+ *   - `id`: a prop on ChartContainer (React.ComponentProps<'div'>). Every
+ *     current call site (components/dashboard/project-analytics-chart.tsx,
+ *     components/analytics/analytics-charts.tsx) omits it, so it falls back
+ *     to React.useId() (React-internal, colon-stripped). But the prop type
+ *     places no constraint on it — a future caller passing an id built from
+ *     any external string (an asset code, a URL param, ...) would inject
+ *     directly into `[data-chart=${id}]` inside the <style> content, with a
+ *     value like `x}</style><script>...` breaking out of both the selector
+ *     and the tag. This was the actual live gap: not hypothetical once
+ *     someone wires a dynamic id in, and nothing enforced it stayed safe.
+ *   - config object keys and `color`/`theme[...]` values: every current
+ *     ChartConfig passed to ChartContainer is a module-level `const
+ *     chartConfig: ChartConfig = {...}` literal (see the two call sites
+ *     above) — not derived from transaction/analytics data. Same risk
+ *     shape as `id` though: the type permits any string, so any future
+ *     config assembled from asset codes/labels would inject unsanitized
+ *     CSS text.
+ *
+ * Fix: sanitize the id (chart selector must be a safe token) and validate
+ * every config key/color against strict allowlists before they reach the
+ * template string, so the *type* of value that can reach
+ * dangerouslySetInnerHTML is constrained regardless of where a future
+ * caller sources it from — rather than only being safe today because every
+ * current caller happens to pass constants.
+ *
+ * The <style dangerouslySetInnerHTML> pattern itself is kept rather than
+ * replaced with the `style` prop: this needs per-theme selector scoping
+ * (`.dark [data-chart=id] { ... }`), which an inline `style` attribute on a
+ * single element cannot express — there's no element to attach a `.dark`
+ * conditional inline style to. A React `style` prop can only set properties
+ * on the element itself, not conditionally on an ancestor class.
+ */
+const SAFE_CHART_ID = /^[A-Za-z0-9_-]+$/
+const SAFE_CONFIG_KEY = /^[A-Za-z0-9_-]+$/
+// Accepts hex colors, rgb()/rgba()/hsl()/hsla()/oklch()/oklab() functional
+// notation (including nested var(--x) references, e.g. "hsl(var(--primary))"
+// — real values used by this repo's chart configs), CSS custom-property
+// references (var(--x)), and bare CSS color keywords/idents (e.g.
+// "currentColor", "red", "transparent"). The functional-notation branch
+// allowlists the function name but blocklists selector/tag-breakout
+// characters (;{}<>`'") inside the parens rather than trying to enumerate
+// every legal inner character, since CSS functions can nest arbitrarily
+// (hsl(var(--x)), color-mix(...), etc) and an exact grammar isn't worth
+// reimplementing here — the blocklist is what actually matters for safety.
+const SAFE_CSS_COLOR_VALUE =
+  /^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla|oklch|oklab|var)\([^;{}<>\\`'"]*\)|[A-Za-z][A-Za-z-]*)$/
+
+function sanitizeChartId(id: string): string {
+  return SAFE_CHART_ID.test(id) ? id : id.replace(/[^A-Za-z0-9_-]/g, '')
+}
+
 function useChart() {
   const context = React.useContext(ChartContext)
 
@@ -47,7 +107,7 @@ function ChartContainer({
   >['children']
 }) {
   const uniqueId = React.useId()
-  const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`
+  const chartId = `chart-${sanitizeChartId(id || uniqueId.replace(/:/g, ''))}`
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -70,8 +130,13 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  // ChartStyle is exported standalone (not just used via ChartContainer,
+  // which already sanitizes its id), so re-apply the same sanitizer here
+  // rather than trusting the caller.
+  const safeId = sanitizeChartId(id)
+
   const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color,
+    ([key, config]) => (config.theme || config.color) && SAFE_CONFIG_KEY.test(key),
   )
 
   if (!colorConfig.length) {
@@ -84,13 +149,14 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    if (!color || !SAFE_CSS_COLOR_VALUE.test(color)) return null
+    return `  --color-${key}: ${color};`
   })
   .join('\n')}
 }
