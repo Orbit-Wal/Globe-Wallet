@@ -9,8 +9,20 @@ export interface ExchangeRate {
   change24h: number
 }
 
+// Issue #75: `cache` is instance-scoped. In a serverless/edge deployment
+// (typical for Next.js App Router routes) each invocation may get a fresh
+// RatesService instance, so this cache is a real, working TTL cache in a
+// long-lived process (local dev, a persistent container) but can be close
+// to a no-op in a serverless/edge target. Fixing that for real needs a
+// store that outlives the instance (Redis, edge KV) — deliberately not
+// added here per this issue's own "or documented as dev-only" DoD option,
+// since wiring a real external cache store is separate infra work. What IS
+// fixed here: concurrent cache-miss requests no longer each hit CoinGecko
+// independently (the stampede half of this issue), via in-flight promise
+// dedup below — that fix is real and instance-scoped-cache-agnostic.
 export class RatesService extends BaseService {
   private cache: Map<string, { rates: ExchangeRate[]; timestamp: number }> = new Map()
+  private inFlight: Map<string, Promise<ExchangeRate[]>> = new Map()
   private readonly cacheTTL = 60000 // 1 minute
   private readonly fetchTimeout = 3000 // 3 seconds
 
@@ -28,14 +40,28 @@ export class RatesService extends BaseService {
         return cached.rates
       }
 
-      try {
-        const rates = await this.fetchLiveRates(from, supportedCurrencies)
-        this.cache.set(cacheKey, { rates, timestamp: now })
-        return rates
-      } catch (error) {
-        console.warn('[RatesService] Failed to fetch live rates, falling back to mock data', error)
-        return this.getMockRates(from, supportedCurrencies)
+      // Coalesce concurrent cache-miss callers for the same key into one
+      // upstream fetch instead of each independently calling CoinGecko.
+      const existing = this.inFlight.get(cacheKey)
+      if (existing) {
+        return existing
       }
+
+      const fetchPromise = (async () => {
+        try {
+          const rates = await this.fetchLiveRates(from, supportedCurrencies)
+          this.cache.set(cacheKey, { rates, timestamp: Date.now() })
+          return rates
+        } catch (error) {
+          console.warn('[RatesService] Failed to fetch live rates, falling back to mock data', error)
+          return this.getMockRates(from, supportedCurrencies)
+        } finally {
+          this.inFlight.delete(cacheKey)
+        }
+      })()
+
+      this.inFlight.set(cacheKey, fetchPromise)
+      return fetchPromise
     })
   }
 

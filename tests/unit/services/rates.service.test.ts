@@ -88,5 +88,27 @@ describe('RatesService', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(first).toEqual(second)
     })
+
+    // Issue #75: concurrent cache-miss callers must coalesce into one
+    // upstream fetch, not each independently call CoinGecko.
+    it('coalesces concurrent cache-miss calls into a single upstream fetch', async () => {
+      let resolveFetch: (v: any) => void
+      global.fetch = jest.fn().mockImplementation(
+        () => new Promise((resolve) => { resolveFetch = resolve }),
+      )
+
+      const p1 = service.getExchangeRates('XLM', ['USDC'])
+      const p2 = service.getExchangeRates('XLM', ['USDC'])
+
+      resolveFetch!({
+        ok: true,
+        json: async () => ({ stellar: { usd: 0.15 }, 'usd-coin': { usd: 1.0 } }),
+      })
+
+      const [r1, r2] = await Promise.all([p1, p2])
+
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(r1).toEqual(r2)
+    })
   })
 })
