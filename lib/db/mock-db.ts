@@ -11,6 +11,7 @@ import {
   MOCK_TRANSACTIONS_COMPACT,
 } from '../fixtures'
 import { filterAndSortTransactions } from '../transaction-utils'
+import bcrypt from 'bcryptjs'
 
 interface UserSchema {
     id: string
@@ -35,6 +36,14 @@ interface RecoveryKeySchema {
     id: string
     user_id: string
     recovery_key_hash: string
+    created_at: string
+}
+
+interface SessionSchema {
+    id: string
+    user_id: string
+    refresh_token_id: string
+    expires_at: string
     created_at: string
 }
 
@@ -73,6 +82,9 @@ interface ClaimableBalanceSchema {
     status: 'available' | 'claimed' | 'deleted'
 }
 
+const DEFAULT_USER_PASSWORD = 'Password123!'
+const DEFAULT_USER_PASSWORD_HASH = bcrypt.hashSync(DEFAULT_USER_PASSWORD, 10)
+
 const generateId = () => Math.random().toString(36).substr(2, 9)
 
 function toWalletAccount(row: WalletAccountSchema): WalletAccount {
@@ -94,6 +106,7 @@ class MockDB {
     private users: UserSchema[] = []
     private webAuthnCredentials: WebAuthnCredentialSchema[] = []
     private recoveryKeys: RecoveryKeySchema[] = []
+    private sessions: SessionSchema[] = []
     private walletAccounts: WalletAccountSchema[] = []
     private transactions: Transaction[] = []
     private txListeners: Set<(tx: Transaction) => void> = new Set()
@@ -116,7 +129,7 @@ class MockDB {
         this.users.push({
             id: userId,
             email: 'user@globe.wallet',
-            password_hash: 'argon2...hash',
+            password_hash: DEFAULT_USER_PASSWORD_HASH,
             kyc_status: 'verified',
             created_at: new Date().toISOString(),
         })
@@ -403,6 +416,22 @@ class MockDB {
             ...recoveryKey,
             created_at: new Date().toISOString(),
         })
+    }
+
+    async saveSession(session: Omit<SessionSchema, 'id' | 'created_at'>): Promise<void> {
+        this.sessions.push({
+            id: generateId(),
+            ...session,
+            created_at: new Date().toISOString(),
+        })
+    }
+
+    async getSessionByRefreshTokenId(refreshTokenId: string): Promise<SessionSchema | undefined> {
+        return this.sessions.find((session) => session.refresh_token_id === refreshTokenId)
+    }
+
+    async revokeSessionByRefreshTokenId(refreshTokenId: string): Promise<void> {
+        this.sessions = this.sessions.filter((session) => session.refresh_token_id !== refreshTokenId)
     }
 
     // ── Claimable Balances (Issue #99) ─────────────────────────────────────
