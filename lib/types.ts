@@ -405,6 +405,15 @@ export interface IWalletService {
     asset: AssetCode,
     memo?: string,
     accountId?: string,
+    /**
+     * Issue #85: identifies this logical payment attempt so a retry (same
+     * key) replays the original result instead of resubmitting. Callers
+     * that own a multi-attempt flow (e.g. useWalletSend) should generate
+     * this once per attempt and reuse it across retries of that same
+     * attempt; omitting it lets the service generate a single-use one,
+     * which is safe for a one-shot call but provides no retry protection.
+     */
+    idempotencyKey?: string,
   ): Promise<TransactionResult>;
   generateReceiveAddress(accountId?: string): string;
   validateAddress(address: string): boolean;

@@ -103,7 +103,7 @@ describe('Wallet Mock API Routes Integration', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({
+        body: JSON.stringify({ idempotencyKey: 'itest-key-1',
           destination: validAddr,
           amount: 50.5,
           asset: 'XLM',
@@ -121,6 +121,48 @@ describe('Wallet Mock API Routes Integration', () => {
       expect(mockSubmitTransaction).toHaveBeenCalledTimes(1)
     })
 
+    // Issue #85
+    it('POST replays the cached result for a duplicate idempotencyKey instead of resubmitting', async () => {
+      const makeRequest = () =>
+        new NextRequest('http://localhost/api/wallet/send', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer test-token' },
+          body: JSON.stringify({
+            idempotencyKey: 'itest-double-submit-key',
+            destination: validAddr,
+            amount: 50.5,
+            asset: 'XLM',
+          }),
+        })
+
+      const first = await sendPOST(makeRequest())
+      const firstData = await first.json()
+      expect(firstData.success).toBe(true)
+      expect(mockSubmitTransaction).toHaveBeenCalledTimes(1)
+
+      const second = await sendPOST(makeRequest())
+      const secondData = await second.json()
+
+      expect(second.status).toBe(200)
+      expect(secondData.hash).toBe(firstData.hash)
+      expect(secondData.idempotentReplay).toBe(true)
+      // The whole point: no second on-chain submission happened.
+      expect(mockSubmitTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    it('POST rejects a request with no idempotencyKey', async () => {
+      const request = new NextRequest('http://localhost/api/wallet/send', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer test-token' },
+        body: JSON.stringify({ destination: validAddr, amount: 50.5, asset: 'XLM' }),
+      })
+      const response = await sendPOST(request)
+      const data = await response.json()
+      expect(response.status).toBe(422)
+      expect(data.error).toContain('ERR_MISSING_IDEMPOTENCY_KEY')
+      expect(mockSubmitTransaction).not.toHaveBeenCalled()
+    })
+
     it('POST should report status failed with a real hash when Horizon rejects the transaction', async () => {
       const horizonError = new Error('Request failed with status code 400')
       ;(horizonError as any).response = {
@@ -132,7 +174,7 @@ describe('Wallet Mock API Routes Integration', () => {
       const request = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
-        body: JSON.stringify({ destination: validAddr, amount: 50.5, asset: 'XLM' }),
+        body: JSON.stringify({ idempotencyKey: 'itest-key-2', destination: validAddr, amount: 50.5, asset: 'XLM' }),
       })
 
       const response = await sendPOST(request)
@@ -151,7 +193,7 @@ describe('Wallet Mock API Routes Integration', () => {
       const request = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
-        body: JSON.stringify({ destination: validAddr, amount: 50.5, asset: 'XLM' }),
+        body: JSON.stringify({ idempotencyKey: 'itest-key-3', destination: validAddr, amount: 50.5, asset: 'XLM' }),
       })
 
       const response = await sendPOST(request)
@@ -167,7 +209,7 @@ describe('Wallet Mock API Routes Integration', () => {
       const request = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
-        body: JSON.stringify({ destination: validAddr, amount: 10, asset: 'DOGE' }),
+        body: JSON.stringify({ idempotencyKey: 'itest-key-4', destination: validAddr, amount: 10, asset: 'DOGE' }),
       })
 
       const response = await sendPOST(request)
@@ -182,7 +224,7 @@ describe('Wallet Mock API Routes Integration', () => {
       const request = new NextRequest('http://localhost/api/wallet/send', {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
-        body: JSON.stringify({ destination: validAddr, amount: 10, asset: 'XLM', memo: 'a'.repeat(29) }),
+        body: JSON.stringify({ idempotencyKey: 'itest-key-5', destination: validAddr, amount: 10, asset: 'XLM', memo: 'a'.repeat(29) }),
       })
 
       const response = await sendPOST(request)
@@ -203,7 +245,7 @@ describe('Wallet Mock API Routes Integration', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({
+        body: JSON.stringify({ idempotencyKey: 'itest-key-6',
           destination: 'invalid-stellar-key',
           amount: 50.5,
           asset: 'XLM'
@@ -223,7 +265,7 @@ describe('Wallet Mock API Routes Integration', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({
+        body: JSON.stringify({ idempotencyKey: 'itest-key-7',
           amount: 50.5,
           asset: 'XLM'
         })
@@ -241,7 +283,7 @@ describe('Wallet Mock API Routes Integration', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({
+        body: JSON.stringify({ idempotencyKey: 'itest-key-8',
           destination: validAddr,
           amount: -5,
           asset: 'XLM'
@@ -260,7 +302,7 @@ describe('Wallet Mock API Routes Integration', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({
+        body: JSON.stringify({ idempotencyKey: 'itest-key-9',
           destination: validAddr,
           amount: 10
         })
@@ -307,7 +349,7 @@ describe('Wallet Mock API Routes Integration', () => {
         const request = new NextRequest('http://localhost/api/wallet/send', {
           method: 'POST',
           headers: { traceparent, Authorization: 'Bearer test-token' },
-          body: JSON.stringify({
+          body: JSON.stringify({ idempotencyKey: 'itest-key-10',
             destination: validAddr,
             amount: 25,
             asset: 'XLM',
@@ -328,7 +370,7 @@ describe('Wallet Mock API Routes Integration', () => {
         const request = new NextRequest('http://localhost/api/wallet/send', {
           method: 'POST',
           headers: { Authorization: 'Bearer test-token' },
-          body: JSON.stringify({ destination: validAddr, amount: 25, asset: 'XLM' }),
+          body: JSON.stringify({ idempotencyKey: 'itest-key-11', destination: validAddr, amount: 25, asset: 'XLM' }),
         })
 
         const response = await sendPOST(request)

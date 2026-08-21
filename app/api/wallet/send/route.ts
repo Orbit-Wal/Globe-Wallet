@@ -14,7 +14,23 @@ interface SendBody {
   asset?: string
   memo?: string
   accountId?: string
+  /**
+   * Issue #85: client-generated key identifying this logical payment
+   * attempt. Required so a double-click, a client-side retry after a slow
+   * response, or a resend after a network blip is idempotent against the
+   * same on-chain operation instead of submitting a second real payment.
+   */
+  idempotencyKey?: string
 }
+
+/**
+ * A UUID (v4) is the recommended shape for a client-generated idempotency
+ * key, but any sufficiently long opaque token from the client is fine —
+ * what actually matters is that it's unique per logical payment attempt
+ * and stable across retries of that same attempt. Reject anything
+ * implausibly short/predictable rather than requiring one specific format.
+ */
+const MIN_IDEMPOTENCY_KEY_LENGTH = 16
 
 /** Stellar's MEMO_TEXT operation stores at most 28 bytes. */
 const MAX_MEMO_BYTES = 28
@@ -42,7 +58,29 @@ async function handleSend(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { destination, amount, asset, memo, accountId } = body
+  const { destination, amount, asset, memo, accountId, idempotencyKey } = body
+
+  if (
+    !idempotencyKey ||
+    typeof idempotencyKey !== 'string' ||
+    idempotencyKey.trim().length < MIN_IDEMPOTENCY_KEY_LENGTH
+  ) {
+    return NextResponse.json(
+      apiError(
+        ErrorCodes.ERR_MISSING_IDEMPOTENCY_KEY,
+        `idempotencyKey is required and must be at least ${MIN_IDEMPOTENCY_KEY_LENGTH} characters (e.g. a client-generated UUID)`,
+      ),
+      { status: 422 },
+    )
+  }
+
+  // Checked before any other validation: a retry of a request that already
+  // completed (even one that would now fail re-validation for an unrelated
+  // reason) must still replay the original result, not a fresh error.
+  const cached = db.getIdempotentResult(idempotencyKey)
+  if (cached) {
+    return NextResponse.json({ ...cached, idempotentReplay: true }, { status: 200 })
+  }
 
   if (!destination || typeof destination !== 'string') {
     return NextResponse.json(
@@ -136,6 +174,14 @@ async function handleSend(request: NextRequest) {
       status: submission.status,
       error: submission.error,
     }
+
+    // Cache against the idempotency key now that an on-chain-affecting
+    // submission actually happened (success, pending, or a definitive
+    // on-chain failure all count — any of those must not be re-attempted).
+    // Errors caught below (missing config, thrown exceptions) are NOT
+    // cached: nothing was submitted, so a retry with the same key should
+    // be allowed to actually try again.
+    db.saveIdempotentResult(idempotencyKey, result)
 
     return NextResponse.json(result, { status: 200 })
   } catch (err) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useFinanceServices } from './useFinanceServices'
 import { isValidStellarAddress, parseStellarAmount } from '../lib/helpers/format'
 import { AssetCode, TransactionResult } from '../lib/types'
@@ -41,10 +41,20 @@ export function useWalletSend(): UseWalletSendReturn {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TransactionResult | null>(null)
 
+  // Issue #85: one idempotency key per logical send attempt, not per
+  // send() call. send-form.tsx's "Confirm Send" button can be clicked
+  // again after an error without calling reset() (that's the actual retry
+  // path here — reset() is only wired to "back to form" / "send another").
+  // Generating a fresh key on every send() call would defeat idempotency
+  // for exactly that retry case, so the key is created lazily on first use
+  // and only cleared by reset() (a new logical attempt).
+  const idempotencyKeyRef = useRef<string | null>(null)
+
   const reset = useCallback(() => {
     setStatus('idle')
     setError(null)
     setResult(null)
+    idempotencyKeyRef.current = null
   }, [])
 
   const send = useCallback(
@@ -75,7 +85,17 @@ export function useWalletSend(): UseWalletSendReturn {
       setResult(null)
 
       try {
-        const txResult = await wallet.sendPayment(destination, amount, asset, memo)
+        if (!idempotencyKeyRef.current) {
+          idempotencyKeyRef.current = crypto.randomUUID()
+        }
+        const txResult = await wallet.sendPayment(
+          destination,
+          amount,
+          asset,
+          memo,
+          undefined,
+          idempotencyKeyRef.current,
+        )
         setResult(txResult)
         setStatus(txResult.success ? 'success' : 'error')
         if (!txResult.success) {

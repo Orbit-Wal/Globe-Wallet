@@ -18,7 +18,8 @@ async function send(destination: string, amount: number, memo?: string) {
   const request = new NextRequest('http://localhost/api/wallet/send', {
     method: 'POST',
     headers: { Authorization: 'Bearer verify-script', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ destination, amount, asset: 'XLM', memo }),
+    // Issue #85: /api/wallet/send now requires a client-generated idempotencyKey.
+    body: JSON.stringify({ destination, amount, asset: 'XLM', memo, idempotencyKey: crypto.randomUUID() }),
   })
   const response = await sendPOST(request)
   const body = await response.json()

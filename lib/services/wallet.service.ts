@@ -139,8 +139,15 @@ export class WalletService extends BaseService implements IWalletService {
         });
     }
 
-    async sendPayment(destination: string, amount: number, asset: AssetCode, memo?: string, accountId?: string): Promise<TransactionResult> {
+    async sendPayment(destination: string, amount: number, asset: AssetCode, memo?: string, accountId?: string, idempotencyKey?: string): Promise<TransactionResult> {
         return this.withPerformanceTracking('sendPayment', async () => {
+            // Issue #85: /api/wallet/send requires an idempotency key on every
+            // request. A caller managing a multi-attempt flow (useWalletSend)
+            // passes its own stable key so retries replay the same result;
+            // a one-shot caller that omits it still gets a valid (if
+            // single-use, since it's generated fresh here) key rather than
+            // the request being rejected.
+            const requestIdempotencyKey = idempotencyKey ?? crypto.randomUUID()
             // Issue #103: captured synchronously, before the first `await` below —
             // this codebase has no Zone.js/AsyncLocalStorage in the browser, so
             // context.active() would no longer reflect this span once we resume
@@ -166,7 +173,7 @@ export class WalletService extends BaseService implements IWalletService {
                 const response = await fetch('/api/wallet/send', {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify({ destination, amount, asset, memo, accountId })
+                    body: JSON.stringify({ destination, amount, asset, memo, accountId, idempotencyKey: requestIdempotencyKey })
                 })
 
                 if (!response.ok) {

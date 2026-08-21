@@ -19,6 +19,7 @@ describe('/api/wallet/send — unconfigured signing key', () => {
         destination: 'GBID26P7CMFHLDFV35TT5RKQHTA6QARBYCBCNW2QIXVPMKE6MSE3FCDV',
         amount: 10,
         asset: 'XLM',
+        idempotencyKey: 'test-unconfigured-key-0001',
       }),
     })
 

@@ -1,4 +1,10 @@
 import { Transaction, TransactionFilters, TransactionPage, Trustline, AssetCode, WalletAccount, ClaimableBalance, TransactionResult } from '../types'
+
+// Issue #85: idempotency window for POST /api/wallet/send. 24h matches
+// common payment-API convention (e.g. Stripe's Idempotency-Key window) —
+// long enough to cover a client retrying after a slow/ambiguous response
+// hours later, short enough that the in-memory store doesn't grow forever.
+const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000
 import {
   MOCK_STELLAR_ACCOUNT,
   MOCK_SECONDARY_STELLAR_ACCOUNT,
@@ -95,6 +101,10 @@ class MockDB {
     private syncState: SyncState = { lastSyncAt: null, totalSynced: 0, lastSyncCursor: null }
     private claimableBalances: ClaimableBalanceSchema[] = []
     private defaultUserId: string = ''
+    // Issue #85: idempotency key -> the result we returned the first time,
+    // so a double-click/client-retry/network-blip resend of the same
+    // logical payment replays the original outcome instead of resubmitting.
+    private idempotencyRecords: Map<string, { result: TransactionResult; createdAt: number }> = new Map()
 
     constructor() {
         this.initializeDefaults()
@@ -470,6 +480,24 @@ class MockDB {
 
     async claimClaimableBalance(balanceId: string, claimantPublicKey: string): Promise<TransactionResult> {
         return this.claimClaimableBalanceSync(balanceId, claimantPublicKey)
+    }
+
+    // ── Idempotency (Issue #85) ─────────────────────────────────────────────
+
+    /** Returns the previously-stored result for this key, or undefined if none exists or it has expired. */
+    getIdempotentResult(key: string): TransactionResult | undefined {
+        const record = this.idempotencyRecords.get(key)
+        if (!record) return undefined
+        if (Date.now() - record.createdAt > IDEMPOTENCY_WINDOW_MS) {
+            this.idempotencyRecords.delete(key)
+            return undefined
+        }
+        return record.result
+    }
+
+    /** Stores the result of a completed submission attempt against its idempotency key. */
+    saveIdempotentResult(key: string, result: TransactionResult): void {
+        this.idempotencyRecords.set(key, { result, createdAt: Date.now() })
     }
 }
 

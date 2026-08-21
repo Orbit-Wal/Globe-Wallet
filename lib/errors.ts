@@ -17,6 +17,8 @@ export const ErrorCodes = {
   ERR_STALE_QUOTE: 'ERR_STALE_QUOTE',
   ERR_NETWORK_FAILURE: 'ERR_NETWORK_FAILURE',
   ERR_UNSUPPORTED_CHAIN: 'ERR_UNSUPPORTED_CHAIN',
+  /** Issue #85: POST /api/wallet/send requires a client-generated idempotency key. */
+  ERR_MISSING_IDEMPOTENCY_KEY: 'ERR_MISSING_IDEMPOTENCY_KEY',
 } as const
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes]

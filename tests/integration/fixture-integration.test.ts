@@ -112,6 +112,9 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
       amount: 100,
       asset: 'XLM',
       memo: 'test',
+      // Issue #85: required now. Each test below overrides this with its
+      // own unique value so tests don't hit each other's cached result.
+      idempotencyKey: 'itest-fixture-default',
     }
 
     beforeEach(() => {
@@ -125,7 +128,7 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify(validBody),
+        body: JSON.stringify({ ...validBody, idempotencyKey: 'itest-fixture-1' }),
       })
       const response = await sendPOST(req)
       const data = await response.json()
@@ -143,7 +146,7 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({ ...validBody, destination: '' }),
+        body: JSON.stringify({ ...validBody, destination: '', idempotencyKey: 'itest-fixture-2' }),
       })
       const response = await sendPOST(req)
       expect(response.status).toBe(422)
@@ -154,7 +157,7 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({ ...validBody, amount: -100 }),
+        body: JSON.stringify({ ...validBody, amount: -100, idempotencyKey: 'itest-fixture-3' }),
       })
       const response = await sendPOST(req)
       expect(response.status).toBe(422)
@@ -176,7 +179,7 @@ describe('API Routes - Mock Centralization (Issue #14)', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer test-token' },
 
-        body: JSON.stringify({ ...validBody, destination: 'invalid' }),
+        body: JSON.stringify({ ...validBody, destination: 'invalid', idempotencyKey: 'itest-fixture-4' }),
       })
       const response = await sendPOST(req)
       expect(response.status).toBe(422)

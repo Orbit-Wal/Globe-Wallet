@@ -16,6 +16,15 @@ export interface SendPayload {
   amount: number
   asset: string
   memo?: string
+  /**
+   * Issue #85: /api/wallet/send rejects requests without this. Optional
+   * here only so existing call shapes still type-check; postTransaction
+   * fills in a fresh one when the caller doesn't supply it. A caller that
+   * wants real retry protection should generate its own and pass the same
+   * value on every retry of one logical attempt (see hooks/useWalletSend.ts
+   * for the pattern actually used by the app's send flow).
+   */
+  idempotencyKey?: string
 }
 
 export interface RatesResponse {
@@ -68,9 +77,13 @@ export async function fetchBalances(): Promise<Balance[]> {
  * Post a send-payment request; returns the transaction result.
  */
 export async function postTransaction(payload: SendPayload): Promise<TransactionResult> {
+  const body: SendPayload = {
+    ...payload,
+    idempotencyKey: payload.idempotencyKey ?? crypto.randomUUID(),
+  }
   return apiFetch<TransactionResult>('/api/wallet/send', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   })
 }
 
