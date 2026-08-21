@@ -70,9 +70,12 @@ describe('WalletService', () => {
     })
 
     describe('sendPayment', () => {
+        // Issue #71: validateAddress() now does a real StrKey checksum check,
+        // so this destination must be an address that actually decodes, not
+        // just a 56-char 'G...' string.
         it('should execute a payment successfully', async () => {
             const result = await service.sendPayment(
-                'GC3G2N7N5LRYX6L5N2YHV3K2L9P8QW1ZC4T6BNRYX7QK3MUKXHV2RZ4D',
+                'GCVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVH7N',
                 100,
                 'XLM'
             )
@@ -163,7 +166,7 @@ describe('WalletService', () => {
 
         it('propagates a W3C traceparent header on the real /api/wallet/send call', async () => {
             await service.sendPayment(
-                'GC3G2N7N5LRYX6L5N2YHV3K2L9P8QW1ZC4T6BNRYX7QK3MUKXHV2RZ4D',
+                'GCVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVKVH7N',
                 100,
                 'XLM'
             )

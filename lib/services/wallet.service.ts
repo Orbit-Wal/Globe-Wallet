@@ -1,6 +1,7 @@
 import { IWalletService, StellarAccount, Balance, Transaction, TransactionResult, AssetCode, StellarServiceError, WalletServiceError, Trustline, TrustlineResult, WalletAccount, ClaimableBalance } from '../types'
 import { MOCK_CRYPTO_ASSETS, SUPPORTED_STELLAR_ASSETS } from '../fixtures'
 import { formatAddress } from '../helpers/format'
+import { isValidStellarPublicKey } from '../helpers/stellar-address'
 import { BaseService } from './base.service'
 import { db } from '../db/mock-db'
 import { context, injectTraceHeaders } from '../tracing/tracer'
@@ -207,12 +208,7 @@ export class WalletService extends BaseService implements IWalletService {
     }
 
     validateAddress(address: string): boolean {
-        if (!address || typeof address !== 'string') return false
-        if (address.length !== 56) return false
-        if (!address.startsWith('G')) return false
-
-        const stellarRegex = /^G[A-Z0-9]{55}$/i
-        return stellarRegex.test(address)
+        return isValidStellarPublicKey(address)
     }
 
     async getTransactionHistory(_accountId?: string): Promise<Transaction[]> {

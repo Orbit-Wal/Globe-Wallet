@@ -1,6 +1,7 @@
 import { IStellarService, StellarAccount, OffRampMethod, CurrencyCode, StellarServiceError, WalletAccount, ClaimableBalance, TransactionResult } from '../types'
 import { OFF_RAMP_RATES } from '../fixtures'
 import { formatAddress } from '../helpers/format'
+import { isValidStellarPublicKey } from '../helpers/stellar-address'
 import { db } from '../db/mock-db'
 
 /**
@@ -48,14 +49,7 @@ export class StellarService implements IStellarService {
   }
 
   validateAddress(address: string): boolean {
-    // Basic Stellar address validation
-    if (!address || typeof address !== 'string') return false
-    if (address.length !== 56) return false
-    if (!address.startsWith('G')) return false
-    
-    // Simple regex check for valid characters
-    const stellarRegex = /^G[A-Z2-7]{55}$/
-    return stellarRegex.test(address)
+    return isValidStellarPublicKey(address)
   }
 
   shortenKey(key: string, lead = 6, tail = 6): string {
