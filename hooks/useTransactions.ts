@@ -1,8 +1,18 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useFinanceServices } from './useFinanceServices'
 import { useErrorBoundary } from './useErrorBoundary'
 import { Transaction, CurrencyCode, AssetCode, TransactionCategory } from '../lib/types'
 import { db } from '@/lib/db/mock-db'
+
+// Issue #79: native EventSource auto-reconnects on every error with a fixed
+// (usually ~3s) delay forever, with no backoff and no way for the UI to
+// know a stream is repeatedly failing (e.g. during a real backend outage).
+// This hook manages reconnection itself instead of relying on the browser's
+// built-in retry, so failures back off exponentially and eventually pause
+// with a visible state rather than hammering /api/wallet/stream indefinitely.
+const SSE_BASE_RECONNECT_DELAY_MS = 1000
+const SSE_MAX_RECONNECT_DELAY_MS = 30_000
+const SSE_MAX_CONSECUTIVE_FAILURES = 6
 
 interface TransactionFilters {
   /** 'in' maps to 'receive'/'deposit', 'out' maps to 'send'/'withdraw'/'convert' */
@@ -17,6 +27,7 @@ export function useTransactions() {
 
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<Transaction[]>([])
+  const [liveUpdatesPaused, setLiveUpdatesPaused] = useState(false)
 
   // Initial load
   const loadInitial = useCallback(async () => {
@@ -37,13 +48,26 @@ export function useTransactions() {
     loadInitial()
   }, [loadInitial])
 
-  // SSE subscription for live updates
+  // SSE subscription for live updates, with our own exponential backoff
+  // (Issue #79) instead of relying on the browser's fixed-interval retry.
   useEffect(() => {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
       return;
     }
-    const es = new EventSource('/api/wallet/stream');
-    const handler = (e: MessageEvent) => {
+
+    let cancelled = false;
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveFailures = 0;
+
+    const clearReconnectTimer = () => {
+      if (reconnectTimer !== null) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    };
+
+    const handleMessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
         const newTxs: Transaction[] = Array.isArray(data) ? data : [data];
@@ -58,13 +82,56 @@ export function useTransactions() {
         });
       } catch {}
     };
-    es.addEventListener('message', handler);
-    es.onerror = () => {
-      // Browser will attempt reconnection automatically
+
+    const connect = () => {
+      if (cancelled) return;
+
+      es = new EventSource('/api/wallet/stream');
+      es.addEventListener('message', handleMessage);
+
+      es.onopen = () => {
+        // A successful connection resets the backoff and clears any paused state.
+        consecutiveFailures = 0;
+        setLiveUpdatesPaused(false);
+      };
+
+      es.onerror = () => {
+        // Close explicitly and drive reconnection ourselves rather than
+        // letting the browser's built-in (fixed-delay, unbounded) retry
+        // hammer the endpoint during an outage.
+        es?.close();
+        es = null;
+
+        if (cancelled) return;
+
+        consecutiveFailures += 1;
+
+        if (consecutiveFailures >= SSE_MAX_CONSECUTIVE_FAILURES) {
+          // Stop retrying and surface a paused state instead of retrying
+          // forever. refreshBalances-style manual recovery isn't wired up
+          // here since polling isn't this hook's job; a future refresh
+          // (e.g. remount, or a "reconnect" action) will try again.
+          setLiveUpdatesPaused(true);
+          return;
+        }
+
+        const delay = Math.min(
+          SSE_BASE_RECONNECT_DELAY_MS * 2 ** (consecutiveFailures - 1),
+          SSE_MAX_RECONNECT_DELAY_MS,
+        );
+        clearReconnectTimer();
+        reconnectTimer = setTimeout(connect, delay);
+      };
     };
+
+    connect();
+
     return () => {
-      es.removeEventListener('message', handler);
-      es.close();
+      cancelled = true;
+      clearReconnectTimer();
+      es?.removeEventListener('message', handleMessage);
+      es?.close();
+      es = null;
     };
   }, []);
 
@@ -141,6 +208,11 @@ export function useTransactions() {
     loading,
     hasError,
     error,
+    // Issue #79: true once the SSE stream has failed
+    // SSE_MAX_CONSECUTIVE_FAILURES times in a row and stopped retrying.
+    // `items` still reflects the last successful loadInitial()/stream state;
+    // this just tells the UI that live updates are no longer arriving.
+    liveUpdatesPaused,
     getTransactions,
     formatTransactionAmount,
     getTransactionsByCategory,
