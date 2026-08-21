@@ -24,11 +24,34 @@ export function TrustlineManager({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Issue #86: block dismissal while a trustline change is in flight.
+        // The Cancel/Confirm buttons already disable themselves during
+        // isProcessing, but nothing stopped Escape or an outside click from
+        // closing the dialog mid-mutation — the async call keeps running
+        // (this component just stays mounted, invisible), but the user
+        // loses all visibility into whether it succeeded or failed.
+        if (isProcessing) return
+        setOpen(next)
+      }}
+    >
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent
+        className="sm:max-w-[425px]"
+        onEscapeKeyDown={(e) => {
+          if (isProcessing) e.preventDefault()
+        }}
+        onPointerDownOutside={(e) => {
+          if (isProcessing) e.preventDefault()
+        }}
+        onInteractOutside={(e) => {
+          if (isProcessing) e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Manage Trustlines</DialogTitle>
           <DialogDescription>
