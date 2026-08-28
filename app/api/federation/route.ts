@@ -13,18 +13,22 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { federationService } from '../../../lib/services/federation.service'
 import { ErrorCodes, apiError } from '../../../lib/errors'
+import { parseQuery } from '@/lib/api/http'
 
+const QuerySchema = z.object({
+  q: z.string().trim().min(1, 'q parameter is required'),
+})
+
+// Issue #68: intentionally PUBLIC — resolves a federated address to a
+// public Stellar account id only; no private keys accepted or returned
+// (see file header).
 export async function GET(request: NextRequest) {
-  const q = request.nextUrl.searchParams.get('q')
-
-  if (!q || typeof q !== 'string' || !q.trim()) {
-    return NextResponse.json(
-      apiError(ErrorCodes.ERR_MISSING_QUERY, 'q parameter is required'),
-      { status: 400 },
-    )
-  }
+  const parsed = parseQuery(request, QuerySchema)
+  if (!parsed.ok) return parsed.response
+  const q = parsed.data.q
 
   if (!federationService.isFederated(q.trim())) {
     return NextResponse.json(

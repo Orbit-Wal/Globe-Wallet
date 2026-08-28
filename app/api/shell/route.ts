@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { shellService } from '@/lib/services/shell.service'
 import type { ShellConfigResponse } from '@/lib/types'
 
+// Issue #68: intentionally PUBLIC — static app-shell config needed before
+// a session exists (pre-login UI chrome), no user data.
 export async function GET(): Promise<NextResponse<ShellConfigResponse>> {
   try {
     const config = shellService.getConfig()

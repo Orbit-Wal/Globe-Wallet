@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '../../../../lib/services/container'
-import { validateBearerToken } from '../../../../lib/auth'
-import { ErrorCodes, apiError } from '../../../../lib/errors'
+import { requireAuth, parseBody } from '@/lib/api/http'
 
-export async function GET(request?: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+const ClaimSchema = z.object({
+  balanceId: z.string().min(1, 'balanceId is required'),
+  accountId: z.string().optional(),
+})
+
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
 
   try {
     const accountId = request?.nextUrl.searchParams.get('accountId') ?? undefined
@@ -32,22 +36,14 @@ export async function GET(request?: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
+
+  const parsed = await parseBody(request, ClaimSchema)
+  if (!parsed.ok) return parsed.response
 
   try {
-    const body = await request.json()
-    const { balanceId } = body as { balanceId: string }
-    const accountId = body.accountId as string | undefined
-
-    if (!balanceId || typeof balanceId !== 'string') {
-      return NextResponse.json(
-        apiError(ErrorCodes.ERR_MISSING_QUERY, 'balanceId is required'),
-        { status: 422 },
-      )
-    }
-
+    const { balanceId, accountId } = parsed.data
     const result = await financeServices.wallet.claimBalance(balanceId, accountId)
 
     if (!result.success) {

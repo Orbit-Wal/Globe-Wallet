@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import type { ChartDailyDataPoint, ChartAnalyticsApiResponse } from '@/lib/types'
+import { parseQuery } from '@/lib/api/http'
+
+const QuerySchema = z.object({
+  period: z.enum(['week', 'month', 'year']).optional(),
+})
 
 const WEEKLY_DATA: ChartDailyDataPoint[] = [
   { day: 'S', value: 45, label: 'Sunday' },
@@ -18,16 +24,12 @@ function computeStats(points: ChartDailyDataPoint[]) {
   return { average, peak }
 }
 
+// Issue #68: intentionally PUBLIC — static, non-user-specific demo chart
+// data (not derived from any account).
 export async function GET(request: NextRequest): Promise<NextResponse<ChartAnalyticsApiResponse>> {
-  const { searchParams } = request.nextUrl
-  const period = searchParams.get('period') ?? 'week'
-
-  if (period !== 'week' && period !== 'month' && period !== 'year') {
-    return NextResponse.json(
-      { success: false, error: `Invalid period "${period}". Must be week | month | year.` },
-      { status: 400 },
-    )
-  }
+  const parsed = parseQuery(request, QuerySchema)
+  if (!parsed.ok) return parsed.response as unknown as NextResponse<ChartAnalyticsApiResponse>
+  const period = parsed.data.period ?? 'week'
 
   const points = WEEKLY_DATA
   const { average, peak } = computeStats(points)

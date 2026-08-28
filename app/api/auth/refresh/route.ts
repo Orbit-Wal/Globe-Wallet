@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { rotateRefreshToken } from '@/lib/auth'
+import { parseBody } from '@/lib/api/http'
 
-interface RefreshBody {
-  refreshToken?: unknown
-}
+const RefreshSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+})
 
+// Issue #68: intentionally PUBLIC — authenticated by the refresh token
+// itself, not a bearer access token (that's the whole point of refresh).
 export async function POST(request: NextRequest) {
-  let body: RefreshBody
+  const parsed = await parseBody(request, RefreshSchema)
+  if (!parsed.ok) return parsed.response
 
-  try {
-    body = (await request.json()) as RefreshBody
-  } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 })
-  }
-
-  const refreshToken = typeof body.refreshToken === 'string' ? body.refreshToken : ''
-  if (!refreshToken) {
-    return NextResponse.json({ success: false, error: 'Refresh token is required' }, { status: 422 })
-  }
-
-  const nextSession = await rotateRefreshToken(refreshToken)
+  const nextSession = await rotateRefreshToken(parsed.data.refreshToken)
   if (!nextSession) {
     return NextResponse.json({ success: false, error: 'Invalid or expired refresh token' }, { status: 401 })
   }

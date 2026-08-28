@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '../../../../lib/db/mock-db';
-import { validateBearerToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api/http';
 import type { Transaction } from '../../../../lib/types';
 
 export const runtime = 'edge';
 
 export async function GET(req: Request) {
   const request = new NextRequest(req.url, { headers: req.headers })
-  if (!validateBearerToken(request)) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {

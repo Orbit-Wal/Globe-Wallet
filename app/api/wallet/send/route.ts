@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { StrKey } from '@stellar/stellar-sdk'
 import { type TransactionResult } from '@/lib/types'
-import { validateBearerToken } from '@/lib/auth'
+import { requireAuth, parseBody } from '@/lib/api/http'
 import { ErrorCodes, apiError } from '@/lib/errors'
 import { SUPPORTED_STELLAR_ASSETS } from '@/lib/fixtures'
 import { db } from '@/lib/db/mock-db'
@@ -22,6 +23,20 @@ interface SendBody {
    */
   idempotencyKey?: string
 }
+
+// Issue #67: shape-level validation via zod. The Stellar-specific checks
+// below (StrKey checksum, supported-asset membership, idempotency-key
+// replay, memo byte length) stay as explicit business-rule checks rather
+// than folding into the schema, since they return distinct ERR_* codes
+// the client already depends on.
+const SendBodySchema = z.object({
+  destination: z.string().optional(),
+  amount: z.coerce.number().optional(),
+  asset: z.string().optional(),
+  memo: z.string().optional(),
+  accountId: z.string().optional(),
+  idempotencyKey: z.string().optional(),
+})
 
 /**
  * A UUID (v4) is the recommended shape for a client-generated idempotency
@@ -46,19 +61,13 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleSend(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
 
-  let body: SendBody = {}
+  const parsed = await parseBody(request, SendBodySchema)
+  if (!parsed.ok) return parsed.response
 
-  try {
-    body = (await request.json()) as SendBody
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-  }
-
-  const { destination, amount, asset, memo, accountId, idempotencyKey } = body
+  const { destination, amount, asset, memo, accountId, idempotencyKey } = parsed.data as SendBody
 
   if (
     !idempotencyKey ||

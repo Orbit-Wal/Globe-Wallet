@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { a11yService } from "@/lib/services/a11y.service";
-import type { A11yAuditRequest, A11yImpactLevel } from "@/lib/types";
+import type { A11yImpactLevel } from "@/lib/types";
+import { requireAuth, parseBody } from "@/lib/api/http";
 
+const AuditSchema = z.object({
+  path: z.string().min(1, "Missing required field: path"),
+  minImpact: z.enum(["minor", "moderate", "serious", "critical"]).optional(),
+});
+
+// Issue #68: intentionally PUBLIC — static standard/page config, no user data.
 export async function GET() {
   return NextResponse.json(
     {
@@ -13,26 +21,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  let body: Partial<A11yAuditRequest> = {};
+  const authError = requireAuth(request);
+  if (authError) return authError;
 
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseBody(request, AuditSchema);
+  if (!parsed.ok) return parsed.response;
 
-  if (!body.path) {
-    return NextResponse.json(
-      { success: false, error: "Missing required field: path" },
-      { status: 400 },
-    );
-  }
-
-  const minImpact = body.minImpact as A11yImpactLevel | undefined;
-  const result = a11yService.auditPage({ path: body.path, minImpact });
+  const minImpact = parsed.data.minImpact as A11yImpactLevel | undefined;
+  const result = a11yService.auditPage({ path: parsed.data.path, minImpact });
 
   if (!result.success) {
     return NextResponse.json(result, { status: 422 });

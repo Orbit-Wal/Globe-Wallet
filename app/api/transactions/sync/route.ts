@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { transactionSyncService } from '../../../../lib/services/transaction-sync.service'
-import { validateBearerToken } from '@/lib/auth'
+import { requireAuth } from '@/lib/api/http'
 
 interface SyncResponse {
   success: boolean
@@ -14,12 +14,8 @@ interface SyncResponse {
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json<SyncResponse>(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 },
-    )
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
 
   try {
     const result = await transactionSyncService.syncFromNetwork()
@@ -32,7 +28,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const status = transactionSyncService.getSyncStatus()
     return NextResponse.json({ success: true, data: status })

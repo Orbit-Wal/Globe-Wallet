@@ -296,6 +296,8 @@ export interface TransactionResult {
   hash?: string;
   error?: string;
   status?: "completed" | "pending" | "failed";
+  /** Issue #69: SEP-24 hosted interactive-withdrawal URL the client must redirect to. */
+  interactiveUrl?: string;
 }
 
 export interface ClaimRequest {
@@ -439,6 +441,8 @@ export interface IOffRampService {
     asset: AssetCode,
     methodId: string,
     currency: CurrencyCode,
+    /** Issue #69: withdrawing Stellar public key, required by the real SEP-24 flow. */
+    account?: string,
   ): Promise<TransactionResult>;
   getRates(): Promise<Record<string, number>>;
   getMethods(): OffRampMethod[];
