@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api/http'
 
 /**
  * Enterprise analytics and health check endpoint for Issue #27
+ * Issue #68: GET is intentionally PUBLIC (health check); POST requires auth.
  */
 export async function GET() {
     return NextResponse.json({
@@ -18,7 +20,10 @@ export async function GET() {
     })
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+    const authError = requireAuth(request)
+    if (authError) return authError
+
     return NextResponse.json({
         verified: true,
         status: 'completed'

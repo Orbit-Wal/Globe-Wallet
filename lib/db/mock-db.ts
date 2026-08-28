@@ -12,6 +12,8 @@ import {
 } from '../fixtures'
 import { filterAndSortTransactions } from '../transaction-utils'
 import bcrypt from 'bcryptjs'
+import { encryptSecret } from '../crypto/key-vault'
+import { Keypair } from '@stellar/stellar-sdk'
 
 interface UserSchema {
     id: string
@@ -139,7 +141,13 @@ class MockDB {
             id: primaryId,
             user_id: userId,
             public_key: MOCK_STELLAR_ACCOUNT.publicKey,
-            encrypted_private_key: 'vault...key',
+            // Issue #64: no real signing secret exists for this fixture
+            // account, so a freshly generated dev-only keypair's secret is
+            // encrypted at rest here — exercising the real envelope-
+            // encryption path (AES-256-GCM, see lib/crypto/key-vault.ts)
+            // instead of storing a plaintext placeholder string. Swap in an
+            // actual custodial secret via `setEncryptedPrivateKey` below.
+            encrypted_private_key: encryptSecret(Keypair.random().secret(), `wallet:${primaryId}`),
             account_type: 'standard',
             name: MOCK_STELLAR_ACCOUNT.name || 'Primary Wallet',
             network: MOCK_STELLAR_ACCOUNT.network || 'Stellar Public Network',
@@ -149,11 +157,12 @@ class MockDB {
             created_at: new Date().toISOString(),
         })
 
+        const secondaryId = generateId()
         this.walletAccounts.push({
-            id: generateId(),
+            id: secondaryId,
             user_id: userId,
             public_key: MOCK_SECONDARY_STELLAR_ACCOUNT.publicKey,
-            encrypted_private_key: 'vault...key-secondary',
+            encrypted_private_key: encryptSecret(Keypair.random().secret(), `wallet:${secondaryId}`),
             account_type: 'premium',
             name: MOCK_SECONDARY_STELLAR_ACCOUNT.name || 'Savings Wallet',
             network: MOCK_SECONDARY_STELLAR_ACCOUNT.network || 'Stellar Public Network',
@@ -211,6 +220,20 @@ class MockDB {
 
     async getAccountByPublicKey(publicKey: string): Promise<WalletAccountSchema | undefined> {
         return this.walletAccounts.find(w => w.public_key === publicKey)
+    }
+
+    /**
+     * Issue #64: the one write path for `encrypted_private_key`. Every
+     * caller (including future ones) goes through this method rather than
+     * assigning the field directly, so a real secret can never land in the
+     * store un-encrypted — it's encrypted here with AES-256-GCM before the
+     * record is touched.
+     */
+    async setEncryptedPrivateKey(accountId: string, plaintextSecretKey: string): Promise<boolean> {
+        const account = this.walletAccounts.find(w => w.id === accountId)
+        if (!account) return false
+        account.encrypted_private_key = encryptSecret(plaintextSecretKey, `wallet:${accountId}`)
+        return true
     }
 
     getAccountByIdSync(accountId: string): WalletAccount | undefined {

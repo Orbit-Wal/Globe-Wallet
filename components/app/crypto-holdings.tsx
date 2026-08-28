@@ -41,6 +41,15 @@ export function CryptoHoldings() {
           <Link href="/evm" className="flex items-center text-xs font-medium text-primary">
             Base &amp; Ethereum <ChevronRight className="h-3.5 w-3.5" />
           </Link>
+          <Link href="/solana" className="flex items-center text-xs font-medium text-primary">
+            Solana <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link href="/sui" className="flex items-center text-xs font-medium text-primary">
+            Sui <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link href="/ledger" className="flex items-center text-xs font-medium text-primary">
+            Ledger <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </div>
       <Card className="divide-y divide-border p-0">

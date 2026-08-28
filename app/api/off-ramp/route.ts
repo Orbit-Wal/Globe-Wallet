@@ -1,57 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { financeServices } from "../../../lib/services/container";
 import { db } from "../../../lib/db/mock-db";
 import { OffRampRequest } from "../../../lib/types";
-import { validateBearerToken } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api/http";
+
+const OffRampSchema = z.object({
+  asset: z.string().min(1, "Asset is required"),
+  paymentMethodId: z.string().min(1, "Payment method is required"),
+  amount: z.coerce.number().positive("Amount must be greater than zero"),
+  fiatAmount: z.coerce.number().positive("Fiat amount is required"),
+});
 
 export async function POST(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
-  }
+  const authError = requireAuth(request);
+  if (authError) return authError;
 
-  let body: OffRampRequest;
+  const parsed = await parseBody(request, OffRampSchema);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = (await request.json()) as OffRampRequest;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
-  }
-
-  const { asset, amount, paymentMethodId, fiatAmount } = body;
-
-  if (!asset || typeof asset !== "string") {
-    return NextResponse.json(
-      { success: false, error: "Asset is required" },
-      { status: 422 },
-    );
-  }
-
-  if (!paymentMethodId || typeof paymentMethodId !== "string") {
-    return NextResponse.json(
-      { success: false, error: "Payment method is required" },
-      { status: 422 },
-    );
-  }
-
-  if (!amount || typeof amount !== "number" || amount <= 0) {
-    return NextResponse.json(
-      { success: false, error: "Amount must be greater than zero" },
-      { status: 422 },
-    );
-  }
-
-  if (typeof fiatAmount !== "number" || fiatAmount <= 0) {
-    return NextResponse.json(
-      { success: false, error: "Fiat amount is required" },
-      { status: 422 },
-    );
-  }
+  const { asset, amount, paymentMethodId, fiatAmount } = parsed.data as OffRampRequest;
 
   const method = financeServices.offRamp
     .getMethods()
@@ -74,11 +42,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Issue #69: the real SEP-24 interactive flow needs the withdrawing
+    // Stellar account's public key.
+    const account = await db.getActiveAccount();
     const result = await financeServices.offRamp.initiateWithdrawal(
       amount,
       asset,
       paymentMethodId,
       method.currency,
+      account?.publicKey,
     );
 
     await db.saveTransaction({
@@ -104,6 +76,9 @@ export async function POST(request: NextRequest) {
           fiatAmount,
           status: result.status,
           hash: result.hash,
+          // Issue #69: SEP-24 hosted interactive-withdrawal URL — the
+          // client must redirect the user here to complete the withdrawal.
+          interactiveUrl: result.interactiveUrl,
         },
       },
       { status: 200 },

@@ -6,24 +6,29 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { evmService } from '@/lib/evm/evm.service'
 import { EvmServiceError, type EvmChainId } from '@/lib/types'
 import { ErrorCodes, apiError } from '@/lib/errors'
+import { parseQuery } from '@/lib/api/http'
 
 const SUPPORTED_CHAIN_IDS: EvmChainId[] = ['base', 'ethereum']
 
+const QuerySchema = z.object({
+  chainId: z.enum(SUPPORTED_CHAIN_IDS as [EvmChainId, ...EvmChainId[]], {
+    errorMap: () => ({ message: `chainId must be one of: ${SUPPORTED_CHAIN_IDS.join(', ')}` }),
+  }),
+  address: z.string().min(1, 'address is required'),
+})
+
+// Issue #68: intentionally PUBLIC — read-only balance query against a
+// public EVM address, no signing key required (see file header).
 export async function GET(request: NextRequest) {
-  const chainId = request.nextUrl.searchParams.get('chainId')
-  const address = request.nextUrl.searchParams.get('address')
+  const parsed = parseQuery(request, QuerySchema)
+  if (!parsed.ok) return parsed.response
+  const { chainId, address } = parsed.data
 
-  if (!chainId || !SUPPORTED_CHAIN_IDS.includes(chainId as EvmChainId)) {
-    return NextResponse.json(
-      apiError(ErrorCodes.ERR_UNSUPPORTED_CHAIN, `chainId must be one of: ${SUPPORTED_CHAIN_IDS.join(', ')}`),
-      { status: 422 },
-    )
-  }
-
-  if (!address || !evmService.validateAddress(address)) {
+  if (!evmService.validateAddress(address)) {
     return NextResponse.json(
       apiError(ErrorCodes.ERR_INVALID_ADDRESS, 'address is required and must be a valid EVM address'),
       { status: 422 },

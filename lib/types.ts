@@ -296,6 +296,8 @@ export interface TransactionResult {
   hash?: string;
   error?: string;
   status?: "completed" | "pending" | "failed";
+  /** Issue #69: SEP-24 hosted interactive-withdrawal URL the client must redirect to. */
+  interactiveUrl?: string;
 }
 
 export interface ClaimRequest {
@@ -439,6 +441,8 @@ export interface IOffRampService {
     asset: AssetCode,
     methodId: string,
     currency: CurrencyCode,
+    /** Issue #69: withdrawing Stellar public key, required by the real SEP-24 flow. */
+    account?: string,
   ): Promise<TransactionResult>;
   getRates(): Promise<Record<string, number>>;
   getMethods(): OffRampMethod[];
@@ -1202,4 +1206,117 @@ export interface AnalyticsStat {
   change: string;
   changePct: number;
   trend: "up" | "down" | "flat";
+}
+
+// ── Solana chain (Issue #142) ───────────────────────────────────────────────
+// Same "self-contained module alongside IWalletService" pattern as the EVM
+// slice above. Solana uses ed25519 keys + base58 addresses — nothing like
+// EVM's secp256k1/checksum model — hence its own module rather than an
+// extension of EvmService.
+
+export type SolanaAssetSymbol = "SOL" | "USDC";
+
+export interface SolanaNetworkConfig {
+  name: string;
+  testnet: boolean;
+  rpcUrl: string;
+  blockExplorerUrl: string;
+  /** SPL token mint addresses available on this network, keyed by symbol. */
+  tokens: Partial<Record<Exclude<SolanaAssetSymbol, "SOL">, { mint: string; decimals: number }>>;
+}
+
+export interface SolanaBalance {
+  symbol: SolanaAssetSymbol;
+  amount: number;
+  raw: string;
+  decimals: number;
+}
+
+export type SolanaTransactionStatus = "completed" | "pending" | "failed";
+
+export interface SolanaTransactionResult {
+  success: boolean;
+  signature?: string;
+  status: SolanaTransactionStatus;
+  error?: string;
+}
+
+export class SolanaServiceError extends ServiceError {
+  constructor(message: string, code?: string) {
+    super(message, code);
+    this.name = "SolanaServiceError";
+  }
+}
+
+export interface ISolanaService {
+  getNetwork(): SolanaNetworkConfig;
+  /** Structural check: valid base58, decodes to a 32-byte public key. */
+  validateAddress(address: string): boolean;
+  getBalances(address: string): Promise<SolanaBalance[]>;
+  shortenKey(key: string, lead?: number, tail?: number): string;
+}
+
+// ── Sui chain (Issue #143) ──────────────────────────────────────────────────
+// Sui is object-centric (coins are owned objects, not account balances) and
+// uses its own address derivation, so — like Solana — it gets a dedicated
+// module rather than a retrofit of IWalletService.
+
+export type SuiAssetSymbol = "SUI" | "USDC";
+
+export interface SuiNetworkConfig {
+  name: string;
+  testnet: boolean;
+  rpcUrl: string;
+  blockExplorerUrl: string;
+  /** Coin type strings available on this network, keyed by symbol. */
+  tokens: Partial<Record<Exclude<SuiAssetSymbol, "SUI">, { coinType: string; decimals: number }>>;
+}
+
+export interface SuiBalance {
+  symbol: SuiAssetSymbol;
+  amount: number;
+  raw: string;
+  decimals: number;
+}
+
+export type SuiTransactionStatus = "completed" | "pending" | "failed";
+
+export interface SuiTransactionResult {
+  success: boolean;
+  digest?: string;
+  status: SuiTransactionStatus;
+  error?: string;
+}
+
+export class SuiServiceError extends ServiceError {
+  constructor(message: string, code?: string) {
+    super(message, code);
+    this.name = "SuiServiceError";
+  }
+}
+
+export interface ISuiService {
+  getNetwork(): SuiNetworkConfig;
+  /** Structural check: 0x-prefixed, 32-byte (64 hex char) address. */
+  validateAddress(address: string): boolean;
+  getBalances(address: string): Promise<SuiBalance[]>;
+  shortenKey(key: string, lead?: number, tail?: number): string;
+}
+
+// ── Hardware-wallet (Ledger) signing (Issue #92) ────────────────────────────
+// A signer abstraction so transaction-building code can target either the
+// server-held software key (StellarPaymentService) or an external Ledger
+// device without changing the caller. MVP scope is the Ledger Stellar app
+// (XLM) via WebHID, run entirely client-side in the browser — Ledger's
+// signing flow needs a physical device present in the user's browser
+// session, so it cannot live in a server-only service the way
+// StellarPaymentService does. Solana/Sui Ledger apps are TODO (see
+// lib/ledger/ledger.service.ts).
+
+export type SigningMethod = "local-key" | "ledger";
+
+export interface LedgerDeviceInfo {
+  connected: boolean;
+  publicKey?: string;
+  path: string;
 }

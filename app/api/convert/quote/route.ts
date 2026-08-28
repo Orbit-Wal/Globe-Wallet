@@ -1,53 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '@/lib/services/container'
 import { ErrorCodes, NoPathFoundError, AssetCode, PathPaymentMode } from '@/lib/types'
+import { parseQuery } from '@/lib/api/http'
 
+const QuerySchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+  amount: z.coerce.number().positive(),
+  mode: z.enum(['strictSend', 'strictReceive']).optional(),
+  slippage: z.coerce.number().gt(0).lte(50).optional(),
+  destinationAccount: z.string().optional(),
+})
+
+// Issue #68: intentionally PUBLIC — a pricing/quote calculation, no wallet
+// mutation and no secret material involved.
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const from = searchParams.get('from') as AssetCode
-  const to = searchParams.get('to') as AssetCode
-  const amount = searchParams.get('amount')
-  const mode = (searchParams.get('mode') || 'strictSend') as PathPaymentMode
-  const slippageStr = searchParams.get('slippage')
-  const destinationAccount = searchParams.get('destinationAccount') || undefined
-
-  if (!from || !to || !amount) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: `${ErrorCodes.ERR_INVALID_AMOUNT}: Required parameters missing (from, to, amount)`,
-      },
-      { status: 400 }
-    )
-  }
-
-  const numAmount = parseFloat(amount)
-  if (isNaN(numAmount) || numAmount <= 0) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: `${ErrorCodes.ERR_INVALID_AMOUNT}: Amount must be a positive number`,
-      },
-      { status: 400 }
-    )
-  }
-
-  const slippageTolerance = slippageStr ? parseFloat(slippageStr) : 0.5
-  if (isNaN(slippageTolerance) || slippageTolerance <= 0 || slippageTolerance > 50) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: `${ErrorCodes.ERR_SLIPPAGE_EXCEEDED}: Slippage tolerance must be between 0.01% and 50%`,
-      },
-      { status: 400 }
-    )
-  }
+  const parsed = parseQuery(request, QuerySchema)
+  if (!parsed.ok) return parsed.response
+  const { destinationAccount } = parsed.data
+  const from = parsed.data.from as AssetCode
+  const to = parsed.data.to as AssetCode
+  const numAmount = parsed.data.amount
+  const mode = (parsed.data.mode || 'strictSend') as PathPaymentMode
+  const slippageTolerance = parsed.data.slippage ?? 0.5
 
   try {
     const quote = await financeServices.pathPayment.findQuote({
       sourceAsset: from,
       destinationAsset: to,
-      amount,
+      amount: String(numAmount),
       mode,
       slippageTolerance,
       destinationAccount,

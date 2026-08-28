@@ -1,30 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db/mock-db'
 import { verifyPassword, createSession } from '@/lib/auth'
+import { parseBody } from '@/lib/api/http'
 
-interface LoginBody {
-  email?: unknown
-  password?: unknown
-}
+const LoginSchema = z.object({
+  email: z.string().trim().min(1, 'email is required'),
+  password: z.string().min(1, 'password is required'),
+})
 
+// Issue #68: intentionally PUBLIC — this route establishes a session; it
+// cannot itself require one.
 export async function POST(request: NextRequest) {
-  let body: LoginBody
+  const parsed = await parseBody(request, LoginSchema)
+  if (!parsed.ok) return parsed.response
 
-  try {
-    body = (await request.json()) as LoginBody
-  } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 })
-  }
-
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-  const password = typeof body.password === 'string' ? body.password : ''
-
-  if (!email || !password) {
-    return NextResponse.json(
-      { success: false, error: 'Email and password are required' },
-      { status: 422 },
-    )
-  }
+  const email = parsed.data.email.toLowerCase()
+  const password = parsed.data.password
 
   const user = await db.getUser(email)
   if (!user) {

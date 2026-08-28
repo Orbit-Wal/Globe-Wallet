@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '@/lib/services/container'
+import { requireAuth, parseBody } from '@/lib/api/http'
+
+const SwitchAccountSchema = z.object({
+  accountId: z.string().min(1, 'accountId is required'),
+})
 
 /**
  * Multi-account API
  * GET  /api/accounts              → list accounts + active
  * POST /api/accounts { accountId } → switch active account
+ * Issue #68: requires auth — exposes wallet account data.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const accounts = financeServices.wallet.listAccounts()
     const active = financeServices.wallet.getAccountInfo()
@@ -27,16 +37,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const accountId = body?.accountId as string | undefined
-    if (!accountId || typeof accountId !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'accountId is required' },
-        { status: 400 },
-      )
-    }
+  const authError = requireAuth(request)
+  if (authError) return authError
 
+  const parsed = await parseBody(request, SwitchAccountSchema)
+  if (!parsed.ok) return parsed.response
+
+  try {
+    const { accountId } = parsed.data
     const account = financeServices.wallet.switchAccount(accountId)
     return NextResponse.json({
       success: true,

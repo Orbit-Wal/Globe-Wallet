@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { verifyAuthenticationResponse } from '@simplewebauthn/server'
 import { db } from '@/lib/db/mock-db'
+import { parseBody } from '@/lib/api/http'
 
 const RP_ID = process.env.NEXT_PUBLIC_RP_ID || 'localhost'
 const EXPECTED_ORIGIN = process.env.NEXT_PUBLIC_EXPECTED_ORIGIN || 'http://localhost:3000'
 
+const VerifySchema = z.object({
+  email: z.string().trim().min(1, 'email is required'),
+  response: z.record(z.string(), z.any()),
+  expectedChallenge: z.string().min(1, 'expectedChallenge is required'),
+})
+
+// Issue #68: intentionally PUBLIC — completes the passkey login flow
+// itself; cannot require a prior session.
 export async function POST(request: NextRequest) {
+  const parsed = await parseBody(request, VerifySchema)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const { email, response, expectedChallenge } = await request.json()
+    const { email, response, expectedChallenge } = parsed.data
     const user = await db.getUser(email)
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })

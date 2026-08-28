@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '../../../lib/services/container'
 import { ReceiveService } from '../../../lib/services/receive.service'
 import {
@@ -6,10 +7,21 @@ import {
   PaymentRequestResponse,
   ReceiveAddressResponse,
 } from '../../../lib/types'
+import { requireAuth, parseBody } from '@/lib/api/http'
 
 const receiveService = new ReceiveService(financeServices.wallet)
 
-export async function GET() {
+const PaymentRequestSchema = z.object({
+  amount: z.union([z.string(), z.number()]).optional(),
+  asset: z.string().optional(),
+  memo: z.string().optional(),
+}).passthrough()
+
+// Issue #68: requires auth — exposes this account's receive address.
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const result = receiveService.getReceiveAddress()
     const status = result.success ? 200 : 422
@@ -26,8 +38,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
+  const parsed = await parseBody(request, PaymentRequestSchema)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const body: PaymentRequestPayload = await request.json()
+    const body = parsed.data as unknown as PaymentRequestPayload
     const result = receiveService.createPaymentRequest(body)
 
     if (!result.success) {

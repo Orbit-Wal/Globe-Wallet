@@ -19,6 +19,10 @@ export const ErrorCodes = {
   ERR_UNSUPPORTED_CHAIN: 'ERR_UNSUPPORTED_CHAIN',
   /** Issue #85: POST /api/wallet/send requires a client-generated idempotency key. */
   ERR_MISSING_IDEMPOTENCY_KEY: 'ERR_MISSING_IDEMPOTENCY_KEY',
+  /** Issue #92: POST /api/wallet/send/submit-signed requires the signed transaction XDR. */
+  ERR_MISSING_XDR: 'ERR_MISSING_XDR',
+  /** Issue #92: POST /api/wallet/send/submit-signed requires the external signer's signature. */
+  ERR_MISSING_SIGNATURE: 'ERR_MISSING_SIGNATURE',
 } as const
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes]
