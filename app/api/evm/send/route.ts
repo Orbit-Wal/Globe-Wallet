@@ -8,7 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { validateBearerToken } from '@/lib/auth'
+import { z } from 'zod'
+import { requireAuth, parseBody } from '@/lib/api/http'
 import { ErrorCodes, apiError } from '@/lib/errors'
 import { evmService } from '@/lib/evm/evm.service'
 import { getEvmPaymentService, EvmPaymentConfigError } from '@/lib/evm/evm-payment.service'
@@ -22,19 +23,20 @@ interface SendBody {
   amount?: number
 }
 
+const SendBodySchema = z.object({
+  chainId: z.string().optional(),
+  destination: z.string().optional(),
+  amount: z.coerce.number().optional(),
+})
+
 export async function POST(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
 
-  let body: SendBody = {}
-  try {
-    body = (await request.json()) as SendBody
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-  }
+  const parsed = await parseBody(request, SendBodySchema)
+  if (!parsed.ok) return parsed.response
 
-  const { chainId, destination, amount } = body
+  const { chainId, destination, amount } = parsed.data as SendBody
 
   if (!chainId || !SUPPORTED_CHAIN_IDS.includes(chainId as EvmChainId)) {
     return NextResponse.json(

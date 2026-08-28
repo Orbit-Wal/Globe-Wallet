@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { FixtureFactory } from '@/lib/fixtures'
-import { validateBearerToken } from '@/lib/auth'
+import { requireAuth } from '@/lib/api/http'
 
 export async function GET(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
 
   return NextResponse.json(FixtureFactory.getBalances(), { status: 200 })
 }

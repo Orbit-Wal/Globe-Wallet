@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '@/lib/services/container'
 import { AssetCode, ChangeTrustRequest } from '@/lib/types'
-import { validateBearerToken } from '@/lib/auth'
+import { requireAuth, parseBody } from '@/lib/api/http'
+
+const ChangeTrustSchema = z.object({
+  asset: z.string().min(1, 'asset is required'),
+  action: z.enum(['add', 'remove'], { errorMap: () => ({ message: 'Action must be "add" or "remove"' }) }),
+})
 
 export async function GET(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
 
   try {
     const trustlines = await financeServices.wallet.getTrustlines();
@@ -17,21 +22,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateBearerToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireAuth(request)
+  if (authError) return authError
+
+  const parsed = await parseBody(request, ChangeTrustSchema)
+  if (!parsed.ok) return parsed.response
 
   try {
-    const body = await request.json() as ChangeTrustRequest;
-    
-    if (!body.asset || !body.action) {
-      return NextResponse.json({ error: 'Missing required fields: asset, action' }, { status: 400 })
-    }
-
-    if (body.action !== 'add' && body.action !== 'remove') {
-      return NextResponse.json({ error: 'Action must be "add" or "remove"' }, { status: 400 })
-    }
-
+    const body = parsed.data as ChangeTrustRequest
     const result = await financeServices.wallet.changeTrustline(body.asset, body.action);
     return NextResponse.json({ success: true, data: result }, { status: 200 })
   } catch (error: any) {

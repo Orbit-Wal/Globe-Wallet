@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '../../../lib/services/container'
+import { requireAuth, parseBody } from '@/lib/api/http'
 
-export async function GET(request?: NextRequest) {
+const StellarActionSchema = z.object({
+  action: z.enum(['validateAddress', 'generateAddress', 'switchAccount', 'getOffRampRate']),
+  data: z
+    .object({
+      accountId: z.string().optional(),
+      address: z.string().optional(),
+      currency: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+})
+
+// Issue #68: requires auth — exposes this account's wallet/off-ramp info.
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const accountId = request?.nextUrl.searchParams.get('accountId') ?? undefined
     const account = financeServices.wallet.getAccountInfo(accountId)
@@ -26,9 +44,15 @@ export async function GET(request?: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
+  const parsed = await parseBody(request, StellarActionSchema)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const { action, data } = await request.json()
-    const accountId = data?.accountId as string | undefined
+    const { action, data } = parsed.data
+    const accountId = data?.accountId
 
     switch (action) {
       case 'validateAddress': {

@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { financeServices } from '../../../lib/services/container'
 import { SendRequest, SendResponse } from '../../../lib/types'
+import { requireAuth, parseBody } from '@/lib/api/http'
+
+const SendSchema = z.object({
+  destination: z.string().min(1, 'destination is required'),
+  amount: z.coerce.number().positive('amount must be a positive number'),
+  asset: z.string().min(1, 'asset is required'),
+  memo: z.string().optional(),
+})
 
 export async function POST(request: NextRequest) {
-  try {
-    const body: SendRequest = await request.json()
-    const { destination, amount, asset, memo } = body
+  const authError = requireAuth(request)
+  if (authError) return authError
 
-    if (!destination || !amount || !asset) {
-      return NextResponse.json<SendResponse>(
-        { success: false, error: 'Missing required fields: destination, amount, asset' },
-        { status: 400 }
-      )
-    }
+  const parsed = await parseBody(request, SendSchema)
+  if (!parsed.ok) return parsed.response
+
+  try {
+    const { destination, amount, asset, memo } = parsed.data as SendRequest
 
     if (!financeServices.wallet.validateAddress(destination)) {
       return NextResponse.json<SendResponse>(

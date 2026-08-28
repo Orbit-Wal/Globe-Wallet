@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import {
   AddTransactionRequest,
   AssetCode,
@@ -11,8 +12,20 @@ import {
 } from '../../../lib/types'
 import { db } from '../../../lib/db/mock-db'
 import { transactionSyncService } from '../../../lib/services/transaction-sync.service'
+import { requireAuth, parseBody } from '@/lib/api/http'
 
+const AddTransactionSchema = z.object({
+  type: z.string().min(1, 'type is required'),
+  amount: z.coerce.number().positive('amount must be a positive number'),
+  asset: z.string().min(1, 'asset is required'),
+  address: z.string().min(1, 'address is required'),
+}).passthrough()
+
+// Issue #68: requires auth — exposes this account's transaction history.
 export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const sp = new URL(request.url).searchParams
 
@@ -71,22 +84,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
+  const parsed = await parseBody(request, AddTransactionSchema)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const body: AddTransactionRequest = await request.json()
-
-    if (!body.type || !body.amount || !body.asset || !body.address) {
-      return NextResponse.json<TransactionsResponse>(
-        { success: false, error: 'Missing required fields: type, amount, asset, address' },
-        { status: 400 },
-      )
-    }
-    if (body.amount <= 0 || !Number.isFinite(body.amount)) {
-      return NextResponse.json<TransactionsResponse>(
-        { success: false, error: 'amount must be a positive number' },
-        { status: 400 },
-      )
-    }
-
+    const body = parsed.data as unknown as AddTransactionRequest
     const tx = await transactionSyncService.addTransaction(body)
     return NextResponse.json<TransactionsResponse>({ success: true, data: [tx] }, { status: 201 })
   } catch (error) {
