@@ -198,6 +198,109 @@ export class StellarPaymentService {
     }
   }
 
+  /**
+   * Builds (but does not sign) a real Stellar payment transaction for an
+   * arbitrary source account — used by the Ledger signing path (Issue #92),
+   * where the private key lives on the user's device, not on this server.
+   * Unlike submitPayment(), this does not require STELLAR_SOURCE_SECRET_KEY
+   * to be configured at all: it only needs STELLAR_HORIZON_URL, which is
+   * always required.
+   *
+   * Returns the transaction XDR (for the client to hold onto and later
+   * resubmit alongside the signature) and the signature base — the exact
+   * bytes `@ledgerhq/hw-app-str`'s signTransaction() expects.
+   */
+  async buildUnsignedTransaction(
+    params: SubmitPaymentParams & { sourcePublicKey: string },
+  ): Promise<{ xdr: string; signatureBase: string; networkPassphrase: string }> {
+    const horizonUrl = this.config?.horizonUrl ?? process.env.STELLAR_HORIZON_URL
+    if (!horizonUrl) {
+      throw new StellarPaymentConfigError(
+        'STELLAR_HORIZON_URL must be set as a server-only environment variable — see .env.example.',
+      )
+    }
+    const networkPassphrase = this.config?.networkPassphrase ?? resolveNetworkPassphrase()
+    const server = this.server ?? new StellarSdk.Horizon.Server(horizonUrl)
+
+    const asset = resolveAsset(params.asset)
+    if (!asset) {
+      throw new Error(`Unsupported or unconfigured asset: ${params.asset}`)
+    }
+
+    const account = await server.loadAccount(params.sourcePublicKey)
+
+    const txBuilder = new StellarSdk.TransactionBuilder(account, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(
+        StellarSdk.Operation.payment({
+          destination: params.destination,
+          asset,
+          amount: params.amount.toFixed(7),
+        }),
+      )
+      .setTimeout(30)
+
+    if (params.memo) {
+      txBuilder.addMemo(StellarSdk.Memo.text(params.memo))
+    }
+
+    const transaction = txBuilder.build()
+
+    return {
+      xdr: transaction.toXDR(),
+      signatureBase: transaction.signatureBase().toString('base64'),
+      networkPassphrase,
+    }
+  }
+
+  /**
+   * Submits a transaction that was already signed externally (e.g. by a
+   * Ledger device) — the counterpart to buildUnsignedTransaction(). Attaches
+   * the caller-supplied signature via Transaction#addSignature rather than
+   * signing itself, then submits exactly like submitPayment() does.
+   */
+  async submitSignedTransaction(
+    xdr: string,
+    publicKey: string,
+    signatureBase64: string,
+    networkPassphrase: string = this.config?.networkPassphrase ?? resolveNetworkPassphrase(),
+  ): Promise<SubmitPaymentResult> {
+    const horizonUrl = this.config?.horizonUrl ?? process.env.STELLAR_HORIZON_URL
+    if (!horizonUrl) {
+      throw new StellarPaymentConfigError(
+        'STELLAR_HORIZON_URL must be set as a server-only environment variable — see .env.example.',
+      )
+    }
+    const server = this.server ?? new StellarSdk.Horizon.Server(horizonUrl)
+
+    let transaction: StellarSdk.Transaction
+    try {
+      transaction = new StellarSdk.Transaction(xdr, networkPassphrase)
+      transaction.addSignature(publicKey, signatureBase64)
+    } catch (err) {
+      return {
+        hash: '',
+        status: 'failed',
+        error: err instanceof Error ? `Failed to attach signature: ${err.message}` : 'Failed to attach signature',
+      }
+    }
+
+    const hash = transaction.hash().toString('hex')
+
+    try {
+      const response = await server.submitTransaction(transaction)
+      return {
+        hash: response.hash || hash,
+        status: response.successful ? 'completed' : 'failed',
+        ledger: response.ledger,
+      }
+    } catch (err) {
+      return this.describeSubmissionOutcome(err, hash)
+    }
+  }
+
   private describeLoadAccountError(err: unknown): string {
     const horizonResponse = getHorizonResponse(err)
     if (horizonResponse?.status === 404) {
