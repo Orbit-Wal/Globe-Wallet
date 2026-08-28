@@ -16,8 +16,20 @@ export interface UseWalletSendReturn {
   error: string | null
   /** Transaction result if status === 'success' */
   result: TransactionResult | null
-  /** Initiate the send-payment flow */
-  send: (destination: string, rawAmount: string, asset: AssetCode, memo?: string) => Promise<void>
+  /**
+   * Initiate the send-payment flow. Resolves with the TransactionResult on
+   * a completed call (success or a service-level failure), or `null` when
+   * client-side validation rejected the input before any network call was
+   * made — callers that need to react to the outcome (e.g. settling/rolling
+   * back an optimistic UI entry, Issue #91) can use the return value
+   * instead of re-deriving it from `status`/`result` after the await.
+   */
+  send: (
+    destination: string,
+    rawAmount: string,
+    asset: AssetCode,
+    memo?: string,
+  ) => Promise<TransactionResult | null>
   /** Reset state back to idle */
   reset: () => void
 }
@@ -63,12 +75,12 @@ export function useWalletSend(): UseWalletSendReturn {
       rawAmount: string,
       asset: AssetCode,
       memo?: string,
-    ): Promise<void> => {
+    ): Promise<TransactionResult | null> => {
       // Client-side validation before hitting the service
       if (!isValidStellarAddress(destination)) {
         setError('Invalid Stellar address. Must be 56 characters starting with G.')
         setStatus('error')
-        return
+        return null
       }
 
       let amount: number
@@ -77,7 +89,7 @@ export function useWalletSend(): UseWalletSendReturn {
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Invalid amount')
         setStatus('error')
-        return
+        return null
       }
 
       setStatus('processing')
@@ -101,9 +113,12 @@ export function useWalletSend(): UseWalletSendReturn {
         if (!txResult.success) {
           setError(txResult.error ?? 'Payment failed')
         }
+        return txResult
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'An unexpected error occurred')
+        const message = e instanceof Error ? e.message : 'An unexpected error occurred'
+        setError(message)
         setStatus('error')
+        return { success: false, error: message, status: 'failed' }
       }
     },
     [wallet],

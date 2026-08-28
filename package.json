@@ -15,6 +15,7 @@
     "test:unit": "jest tests/unit",
     "test:component": "jest tests/component",
     "test:integration": "jest tests/integration",
+    "test:testnet": "RUN_TESTNET_INTEGRATION=1 jest tests/integration/testnet --testPathIgnorePatterns= --runInBand",
     "test:a11y": "jest tests/unit/a11y tests/component/accessibility",
     "test:a11y:e2e": "playwright test --grep \"Issue #24\"",
     "test:e2e": "playwright test",

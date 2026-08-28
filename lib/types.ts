@@ -1162,3 +1162,44 @@ export interface IEvmService {
   getBalances(chainId: EvmChainId, address: string): Promise<EvmBalance[]>;
   shortenKey(key: string, lead?: number, tail?: number): string;
 }
+
+// ── Analytics / charts (Issue #15, #78) ─────────────────────────────────────
+// Re-added after commit 55df44c ("retire unreachable Issue #15 analytics
+// dashboard code") deleted lib/analytics/chart-data.ts and these types along
+// with it — but left components/analytics/analytics-content.tsx importing
+// both, which made that component (and its test) throw on a missing module.
+// Issue #78 needs chart-data.ts back anyway to add a downsampling strategy,
+// so it's restored here rather than left broken.
+
+/** Granularity for a volume-history series. */
+export type ChartInterval = "day" | "week" | "month" | "year";
+
+/** A single point in a time-series chart. */
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+  timestamp: string;
+}
+
+export interface AnalyticsDashboard {
+  categoryBreakdown: { category: TransactionCategory; count: number; volume: number }[];
+  topAssets: { asset: AssetCode; volume: number; pct: number }[];
+}
+
+export type AnalyticsMetricId =
+  | "transaction_volume"
+  | "send_count"
+  | "receive_count"
+  | "active_wallets"
+  | "conversion_rate"
+  | "fee_total";
+
+export interface AnalyticsStat {
+  id: AnalyticsMetricId;
+  title: string;
+  value: string;
+  numericValue: number;
+  change: string;
+  changePct: number;
+  trend: "up" | "down" | "flat";
+}

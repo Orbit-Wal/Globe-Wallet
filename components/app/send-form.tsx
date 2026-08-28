@@ -29,6 +29,7 @@ import { useBalances } from "@/hooks/useBalances";
 import { useContacts } from "@/hooks/useContacts";
 import { useWalletSend } from "@/hooks/useWalletSend";
 import { useAddressLookup } from "@/hooks/useAddressLookup";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,11 @@ import { calculateFee } from "@/lib/helpers/format";
 import { isFederatedAddress } from "@/lib/helpers/send-utils";
 import { useTranslations } from "next-intl";
 import type { AssetCode, SendConfirmation } from "@/lib/types";
+import {
+  addOptimisticTransaction,
+  removeOptimisticTransaction,
+  settleOptimisticTransaction,
+} from "@/lib/state/optimistic-transactions";
 
 export function SendForm() {
   const t = useTranslations();
@@ -48,6 +54,9 @@ export function SendForm() {
   const { formatAsset } = usePricing();
   const { assets, loading: balancesLoading } = useBalances();
   const contactsState = useContacts();
+  // Issue #94: sending real funds while offline would just fail silently
+  // (or hang) — disable the action explicitly instead, with a visible reason.
+  const isOnline = useOnlineStatus();
 
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [address, setAddress] = useState("");
@@ -149,12 +158,46 @@ export function SendForm() {
     if (!confirmation) return;
     setFormError(null);
 
-    await send(
+    // Issue #91: append an optimistic "pending" transaction entry to the
+    // shared store immediately, before the real send resolves — so any
+    // transaction list rendered elsewhere reflects the attempt right away
+    // instead of waiting on network latency. Rolled back below if the real
+    // send fails; settled in place (and later reconciled against the
+    // stream-confirmed transaction by hash, see useTransactions.ts) if it
+    // succeeds.
+    const optimisticId = `optimistic-${crypto.randomUUID()}`;
+    addOptimisticTransaction({
+      id: optimisticId,
+      type: "send",
+      amount: confirmation.amount,
+      asset: confirmation.asset,
+      address: confirmation.recipient,
+      date: new Date().toISOString(),
+      status: "pending",
+      category: "payment",
+      name: `${confirmation.asset} Sent`,
+      detail: confirmation.recipientLabel ?? confirmation.recipient,
+      currency: undefined,
+    });
+
+    const txResult = await send(
       confirmation.recipient,
       String(confirmation.amount),
       confirmation.asset,
       confirmation.memo,
     );
+
+    if (txResult && txResult.success) {
+      settleOptimisticTransaction(optimisticId, {
+        status: txResult.status ?? "completed",
+        stellarHash: txResult.hash,
+      });
+    } else {
+      // Rollback: remove the optimistic entry entirely. The existing error
+      // UI (WalletErrorAlert bound to `error`/`activeError` below) already
+      // surfaces the failure — nothing else to do here.
+      removeOptimisticTransaction(optimisticId);
+    }
   };
 
   const handleReset = () => {
@@ -397,11 +440,20 @@ export function SendForm() {
             )}
           </CardContent>
 
-          <CardFooter className="flex gap-2">
+          <CardFooter className="flex flex-col gap-2">
+            {!isOnline && (
+              <p
+                className="w-full text-center text-xs text-amber-600 dark:text-amber-400"
+                data-testid="send-offline-notice"
+              >
+                {t("common.offlineSendDisabled")}
+              </p>
+            )}
             <Button
               type="submit"
-              className="flex-1"
+              className="w-full"
               data-testid="review-button"
+              disabled={!isOnline}
             >
               <Send className="w-4 h-4 mr-2" aria-hidden />
               {t("common.review")}
@@ -422,12 +474,20 @@ export function SendForm() {
                 }}
               />
             )}
+            {!isOnline && (
+              <p
+                className="text-center text-xs text-amber-600 dark:text-amber-400"
+                data-testid="send-offline-notice"
+              >
+                {t("common.offlineSendDisabled")}
+              </p>
+            )}
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button
               type="button"
               className="flex-1 group relative overflow-hidden"
-              disabled={isProcessing}
+              disabled={isProcessing || !isOnline}
               data-testid="confirm-send-button"
               aria-busy={isProcessing}
               onClick={handleConfirm}

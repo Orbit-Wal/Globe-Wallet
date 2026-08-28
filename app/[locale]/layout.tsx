@@ -5,6 +5,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { FinanceServicesProvider } from "@/hooks/useFinanceServices"
 import { ActiveAccountProvider } from "@/hooks/useActiveAccount"
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register"
+import { OfflineBanner } from "@/components/ui/offline-banner"
 import { NextIntlClientProvider } from "next-intl"
 import { getMessages } from "next-intl/server"
 import { notFound } from "next/navigation"
@@ -21,6 +23,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  themeColor: '#10b981',
 }
 
 export async function generateMetadata({
@@ -37,6 +40,7 @@ export async function generateMetadata({
     title: t.app.title,
     description: t.app.description,
     generator: "v0.app",
+    manifest: "/manifest.json",
     icons: {
       icon: [
         {
@@ -83,12 +87,14 @@ export default async function RootLayout({
           >
             <FinanceServicesProvider>
               <ActiveAccountProvider>
+                <OfflineBanner />
                 {children}
               </ActiveAccountProvider>
             </FinanceServicesProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
         <Analytics />
+        <ServiceWorkerRegister />
       </body>
     </html>
   )

@@ -36,6 +36,7 @@
     "fee": "Fee",
     "processing": "Processing...",
     "review": "Review",
+    "offlineSendDisabled": "You're offline — sending is disabled until your connection is back.",
     "sendComplete": "Send Complete",
     "sendSubmitted": "Send Submitted",
     "transactionSuccessful": "Transaction Successful",

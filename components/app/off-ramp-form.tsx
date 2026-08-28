@@ -17,6 +17,7 @@ import { FeeDisplay } from "@/components/ui/FeeDisplay";
 import type { UseOffRampReturn } from "@/hooks/useOffRamp";
 import type { OffRampPaymentMethod, PayoutBreakdown } from "@/lib/off-ramp-utils";
 import { useTranslations } from "next-intl";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 interface OffRampFormProps {
   hook: UseOffRampReturn;
@@ -38,6 +39,9 @@ export function OffRampForm({
   "data-testid": testId = "off-ramp-form",
 }: OffRampFormProps) {
   const t = useTranslations()
+  // Issue #94: off-ramp is a real money-movement action — disable it
+  // explicitly (not just let the request fail) when there's no network.
+  const isOnline = useOnlineStatus();
   const {
     amount,
     asset,
@@ -201,12 +205,21 @@ export function OffRampForm({
           </p>
         )}
 
+      {!isOnline && (
+        <p
+          className="mb-3 text-center text-xs text-amber-600 dark:text-amber-400"
+          data-testid="off-ramp-offline-notice"
+        >
+          {t('common.offlineSendDisabled')}
+        </p>
+      )}
+
       {/* Submit */}
       <Button
         type="submit"
         className="w-full"
         size="lg"
-        disabled={!validation.valid || isLoading}
+        disabled={!validation.valid || isLoading || !isOnline}
         aria-busy={isLoading}
       >
         {isLoading ? t('common.processing') : t('common.withdrawToBank')}
