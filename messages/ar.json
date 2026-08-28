@@ -36,6 +36,7 @@
     "fee": "الرسوم",
     "processing": "جارٍ المعالجة...",
     "review": "مراجعة",
+    "offlineSendDisabled": "أنت غير متصل بالإنترنت — الإرسال معطل حتى تعود الشبكة.",
     "sendComplete": "الإرسال مكتمل",
     "sendSubmitted": "تم إرسال الطلب",
     "transactionSuccessful": "المعاملة ناجحة",

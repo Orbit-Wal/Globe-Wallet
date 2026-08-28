@@ -1,8 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useFinanceServices } from './useFinanceServices'
 import { useErrorBoundary } from './useErrorBoundary'
 import { Transaction, CurrencyCode, AssetCode, TransactionCategory } from '../lib/types'
 import { db } from '@/lib/db/mock-db'
+import {
+  getOptimisticTransactions,
+  subscribeOptimisticTransactions,
+  reconcileOptimisticTransactions,
+} from '@/lib/state/optimistic-transactions'
 
 // Issue #79: native EventSource auto-reconnects on every error with a fixed
 // (usually ~3s) delay forever, with no backoff and no way for the UI to
@@ -28,6 +33,20 @@ export function useTransactions() {
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<Transaction[]>([])
   const [liveUpdatesPaused, setLiveUpdatesPaused] = useState(false)
+
+  // Issue #91: mirror the shared optimistic-transaction store into this
+  // hook instance's state so the send flow's "pending" entry shows up in
+  // any transaction list rendered elsewhere, without a full context rewrite.
+  const [optimisticItems, setOptimisticItems] = useState<Transaction[]>(
+    getOptimisticTransactions(),
+  )
+
+  useEffect(() => {
+    const unsubscribe = subscribeOptimisticTransactions(() => {
+      setOptimisticItems(getOptimisticTransactions())
+    })
+    return unsubscribe
+  }, [])
 
   // Initial load
   const loadInitial = useCallback(async () => {
@@ -80,6 +99,10 @@ export function useTransactions() {
           const filtered = newTxs.filter(tx => !existingIds.has(tx.id));
           return [...filtered, ...prev];
         });
+        // Issue #91: once the real, confirmed transaction(s) sync in over
+        // the stream, drop any optimistic placeholder with a matching
+        // stellarHash so it doesn't keep showing alongside the real entry.
+        reconcileOptimisticTransactions(newTxs);
       } catch {}
     };
 
@@ -136,11 +159,20 @@ export function useTransactions() {
   }, []);
 
 
+  // Issue #91: merge the optimistic (pending, not-yet-confirmed) entries on
+  // top of the loaded/streamed items. Anything already reconciled into
+  // `items` itself (matching id) is skipped so it isn't shown twice.
+  const combinedItems = useMemo(() => {
+    if (optimisticItems.length === 0) return items
+    const existingIds = new Set(items.map((t) => t.id))
+    return [...optimisticItems.filter((t) => !existingIds.has(t.id)), ...items]
+  }, [items, optimisticItems])
+
   const getTransactions = useCallback(
     async (filters?: TransactionFilters): Promise<Transaction[]> => {
       // Simple filtering on the client side for now
-      if (!filters) return items
-      let filtered = items
+      if (!filters) return combinedItems
+      let filtered = combinedItems
       if (filters.type) {
         const inTypes = ['receive', 'deposit', 'in']
         const outTypes = ['send', 'withdraw', 'convert', 'out']
@@ -156,7 +188,7 @@ export function useTransactions() {
       }
       return filtered
     },
-    [items]
+    [combinedItems]
   )
 
   // Format transaction amount
@@ -219,7 +251,8 @@ export function useTransactions() {
     getTransactionsByType,
     getTransactionsByAsset,
     calculateCategoryTotal,
-    // expose items for components if needed
-    items,
+    // expose items for components if needed — includes any pending
+    // optimistic entries merged on top (Issue #91)
+    items: combinedItems,
   }
 }
